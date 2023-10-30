@@ -33,11 +33,11 @@ void send_message(char *s, int uid, chat_server_t *server){
 
     for(int i=0; i<MAX_CLIENTS; ++i){
         if(server->clients[i]){
-            if(server->clients[i]->uid != uid){
-                if(write(server->clients[i]->sockfd, s, strlen(s)) < 0){
+            char full_message[1024+10+3];
+            snprintf(full_message, sizeof(full_message), "%s: %s",server->clients[uid]->username,s);
+            if(write(server->clients[i]->sockfd, full_message, strlen(full_message)) < 0){
                     perror("ERROR: write to descriptor failed");
                     break;
-                }
             }
         }
     }
@@ -52,8 +52,7 @@ void *handle_client(void *arg){
     client_t *cli = args->client;
     chat_server_t *server = args->server;
 
-    char username[10];
-    int username_len = recv(cli->sockfd, username, 10, 0);
+    int username_len = recv(cli->sockfd, cli->username, 10, 0);
     if(username_len <= 0){
         close(cli->sockfd);
         remove_client(cli->uid, server);
@@ -63,7 +62,7 @@ void *handle_client(void *arg){
 
         return NULL;
     }
-    username[username_len] = '\0';
+    cli->username[username_len] = '\0';
 
     // Receive data from client
     while(1){

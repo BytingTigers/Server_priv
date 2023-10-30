@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     char username[10];
 
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s [server-port] username\n", argv[0]);
+        fprintf(stderr, "Usage: %s [server-port]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 

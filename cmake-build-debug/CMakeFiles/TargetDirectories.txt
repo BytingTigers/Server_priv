@@ -1,3 +1,0 @@
-/home/hokuma/SS/Server/cmake-build-debug/CMakeFiles/server.dir
-/home/hokuma/SS/Server/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/hokuma/SS/Server/cmake-build-debug/CMakeFiles/rebuild_cache.dir

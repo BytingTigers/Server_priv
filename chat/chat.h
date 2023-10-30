@@ -16,6 +16,7 @@ typedef struct {
     struct sockaddr_in address;
     int sockfd;
     int uid;
+    char username[10];
 } client_t;
 
 typedef struct {
