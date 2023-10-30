@@ -34,7 +34,11 @@ void send_message(char *s, int uid, chat_server_t *server){
     for(int i=0; i<MAX_CLIENTS; ++i){
         if(server->clients[i]){
             char full_message[1024+10+3];
-            snprintf(full_message, sizeof(full_message), "%s: %s",server->clients[uid]->username,s);
+            if(uid<0) // for server
+                snprintf(full_message, sizeof(full_message), "SERVER: %s",s);
+            else
+                snprintf(full_message, sizeof(full_message), "%s: %s",server->clients[uid]->username,s);
+
             if(write(server->clients[i]->sockfd, full_message, strlen(full_message)) < 0){
                     perror("ERROR: write to descriptor failed");
                     break;
@@ -63,6 +67,11 @@ void *handle_client(void *arg){
         return NULL;
     }
     cli->username[username_len] = '\0';
+
+    // print join message
+    char join_message[10+20];
+    snprintf(join_message,sizeof(join_message),"%s has joined.\n",cli->username);
+    send_message(join_message,-1,server);
 
     // Receive data from client
     while(1){
@@ -156,6 +165,7 @@ void *start_chat_server(void *port){
             perror("Failed to allocate memory for new client");
             continue;
         }
+
         cli->address = cli_addr;
         cli->sockfd = connfd;
         cli->uid = client_count; // Use client_count as unique ID
@@ -181,6 +191,7 @@ void *start_chat_server(void *port){
 
         client_count++;
         printf("<[ SERVER at PORT %d: %d/%d ]>\n",server_port,client_count,MAX_CLIENTS);
+        
         // Reduce CPU usage
         sleep(1);
     }
