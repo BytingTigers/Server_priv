@@ -28,13 +28,13 @@ void remove_client(int uid, chat_server_t *server){
     pthread_mutex_unlock(&server->clients_mutex);
 }
 
-void send_message(char *s, int uid, chat_server_t *server){
+void send_message(char *s, int uid, chat_server_t *server, redisContext *redis_context){
     pthread_mutex_lock(&server->clients_mutex);
 
     for(int i=0; i<MAX_CLIENTS; ++i){
         if(server->clients[i]){
             char full_message[1024+10+3];
-            if(uid<0) // for server
+            if(uid<0) // uid is -1 if message from server
                 snprintf(full_message, sizeof(full_message), "SERVER: %s",s);
             else
                 snprintf(full_message, sizeof(full_message), "%s: %s",server->clients[uid]->username,s);
@@ -42,6 +42,17 @@ void send_message(char *s, int uid, chat_server_t *server){
             if(write(server->clients[i]->sockfd, full_message, strlen(full_message)) < 0){
                     perror("ERROR: write to descriptor failed");
                     break;
+            }
+            
+            if(uid>=0){ // save only if message is sent from user
+                char key[32];
+                snprintf(key, sizeof(key), "chatroom_%d",server->server_port);
+                redisReply *reply = redisCommand(redis_context, "LPUSH %s %s", key, full_message);
+                if (reply == NULL) {
+                    printf("Failed to save message to Redis: %s\n", redis_context->errstr);
+                } else {
+                    freeReplyObject(reply);
+                }
             }
         }
     }
@@ -55,7 +66,9 @@ void *handle_client(void *arg){
     thread_args_t *args = (thread_args_t *)arg;
     client_t *cli = args->client;
     chat_server_t *server = args->server;
+    redisContext *redis_context = args->redis_context;
 
+    // set username sent via socket
     int username_len = recv(cli->sockfd, cli->username, 10, 0);
     if(username_len <= 0){
         close(cli->sockfd);
@@ -71,7 +84,10 @@ void *handle_client(void *arg){
     // print join message
     char join_message[10+20];
     snprintf(join_message,sizeof(join_message),"%s has joined.\n",cli->username);
-    send_message(join_message,-1,server);
+    send_message(join_message, -1, server, NULL);
+
+    // TODO: retrieve recent chats from redis
+
 
     // Receive data from client
     while(1){
@@ -82,13 +98,13 @@ void *handle_client(void *arg){
         int receive = recv(cli->sockfd, buffer, BUFFER_SIZE, 0);
         if (receive > 0){
             if(strlen(buffer) > 0){
-                send_message(buffer, cli->uid, server);
+                send_message(buffer, cli->uid, server, redis_context);
                 memset(buffer, 0, BUFFER_SIZE);
             }
         } else if (receive == 0 || strcmp(buffer, "exit") == 0){
             sprintf(buffer, "%d has left\n", cli->uid);
             printf("%s", buffer);
-            send_message(buffer, cli->uid, server);
+            send_message(buffer, -1, server, NULL);
             leave_flag = 1;
         } else {
             perror("ERROR: -1");
@@ -119,7 +135,6 @@ void *start_chat_server(void *port){
     memset(server.clients, 0, sizeof(server.clients));
     server.server_port = server_port;
 
-
     int client_count = 0;
     int listenfd = 0, connfd = 0;
     struct sockaddr_in serv_addr;
@@ -145,6 +160,38 @@ void *start_chat_server(void *port){
     }
 
     printf("<[ SERVER at PORT %d STARTED ]>\n",server_port);
+
+    // REDIS SETUP
+
+    // Connect to Redis server
+    redisContext *redis_context = redisConnect("home.hokuma.pro", 6380);
+    if (redis_context == NULL || redis_context->err) {
+        if (redis_context) {
+            printf("Error: %s\n", redis_context->errstr);
+            redisFree(redis_context);
+        } else {
+            printf("Can't allocate redis context\n");
+        }
+        exit(1);
+    }
+
+    // authentication
+    const char *password = "bytingtigers";
+    redisReply *reply = redisCommand(redis_context, "AUTH %s", password);
+
+    if (reply == NULL) {
+        printf("Error: %s\n", redis_context->errstr);
+        redisFree(redis_context);
+        exit(1);
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        printf("Authentication failed: %s\n", reply->str);
+        redisFree(redis_context);
+        exit(1);
+    }
+
+    freeReplyObject(reply);
 
     // Accept clients
     while(1){
@@ -179,6 +226,7 @@ void *start_chat_server(void *port){
         }
         args->client = cli;
         args->server = &server;
+        args->redis_context = redis_context;
 
         // Add client to the array and fork thread
         add_client(cli, &server);

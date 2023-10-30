@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-g -Wall 
-LDFLAGS=-lpthread
+LDFLAGS=-lpthread -lhiredis
 OBJS=server.o chat.o
 TARGET=server
 

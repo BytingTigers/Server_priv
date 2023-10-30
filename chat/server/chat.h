@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <hiredis/hiredis.h>
 
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
@@ -28,11 +29,12 @@ typedef struct {
 typedef struct {
     client_t *client;
     chat_server_t *server;
+    redisContext *redis_context;
 } thread_args_t;
 
 void add_client(client_t *cl, chat_server_t *server);
 void remove_client(int uid, chat_server_t *server);
-void send_message(char *s, int uid, chat_server_t *server);
+void send_message(char *s, int uid, chat_server_t *server, redisContext *redis_context);
 void *handle_client(void *arg);
 void print_client_addr(struct sockaddr_in addr);
 void *start_chat_server(void *port);
