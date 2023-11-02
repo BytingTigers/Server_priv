@@ -24,6 +24,8 @@ typedef struct {
     client_t *clients[MAX_CLIENTS];
     pthread_mutex_t clients_mutex;
     int server_port;
+    char title[30];
+    char password[20];
 } chat_server_t;
 
 typedef struct {

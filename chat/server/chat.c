@@ -210,6 +210,9 @@ void *start_chat_server(void *port){
 
     freeReplyObject(reply);
 
+    // change database to message(DB 1)
+    redisCommand(redis_context, "SELECT 1");
+    
     // Accept clients
     while(1){
         socklen_t clilen = sizeof(cli_addr);

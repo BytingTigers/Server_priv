@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <mysql/mysql.h>
+#include <hiredis/hiredis.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
+#include <jwt.h>
+#include <jansson.h>
 #include "authentication.h"
-
-#define DB_HOST "43.201.26.232"
-#define DB_USER "bytingtigers"
-#define DB_PASS "bytingtigers"
-#define DB_NAME "auth"
 
 char* toHexString(unsigned char* data, size_t dataLength) {
     char *hexString = calloc(dataLength * 2 + 1, sizeof(char));
@@ -68,7 +68,7 @@ int signup(const char* username, const char* password){
         return EXIT_FAILURE;
     }
 
-    if (mysql_real_connect(conn, DB_HOST, DB_USER, DB_PASS, DB_NAME, 0, NULL, 0) == NULL) {
+    if (mysql_real_connect(conn, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT, NULL, 0) == NULL) {
         fprintf(stderr, "mysql_real_connect() failed\n");
         mysql_close(conn);
         return EXIT_FAILURE;
@@ -119,7 +119,7 @@ int signup(const char* username, const char* password){
     return 1;
 }
 
-int signin(const char* id, const char* password){
+char* signin(const char* id, const char* password){
     MYSQL *conn;
     MYSQL_RES *res;
     char query[512];
@@ -128,20 +128,20 @@ int signin(const char* id, const char* password){
 
     if (!conn) {
         fprintf(stderr, "mysql_init() failed\n");
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    if (mysql_real_connect(conn, DB_HOST, DB_USER, DB_PASS, DB_NAME, 0, NULL, 0) == NULL) {
+    if (mysql_real_connect(conn, DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT, NULL, 0) == NULL) {
         fprintf(stderr, "mysql_real_connect() failed\n");
         mysql_close(conn);
-        return EXIT_FAILURE;
+        return NULL;
     }
 
     snprintf(query,sizeof(query),"SELECT salt FROM users WHERE username='%s'",id);
     // overflow possible
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
-        return EXIT_FAILURE;
+        return NULL;
     }
 
     res = mysql_store_result(conn);
@@ -149,7 +149,7 @@ int signin(const char* id, const char* password){
     unsigned char *salt = StringtoHex(stringSalt);
     unsigned char *hash = calloc(HASH_LENGTH,sizeof(char));
     if(!hash || !salt)
-        return -1;
+        return NULL;
 
     createSaltedHash(password, salt, hash);
     char *hashString = toHexString(hash,HASH_LENGTH);
@@ -158,17 +158,136 @@ int signin(const char* id, const char* password){
     // overflow possible
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
-        return EXIT_FAILURE;
+        return NULL;
     }
     res = mysql_store_result(conn);
     int result = mysql_num_rows(res);
+    mysql_free_result(res);
 
+    // jwt generation
+    redisContext *redis_context = redisConnect("home.hokuma.pro",6380);
+    if (redis_context == NULL || redis_context->err) {
+        if (redis_context) {
+            printf("Error: %s\n", redis_context->errstr);
+            redisFree(redis_context);
+        } else {
+            printf("Can't allocate redis context\n");
+        }
+        free(salt);
+        free(hash);
+        free(hashString);
+        mysql_close(conn);
+
+        exit(1);
+    }
+    
+    // redis authentication
+    redisReply *reply;
+    reply = redisCommand(redis_context, "AUTH %s", REDIS_PASS);
+
+    if (reply == NULL) {
+        printf("Error: %s\n", redis_context->errstr);
+
+        redisFree(redis_context);
+        free(salt);
+        free(hash);
+        free(hashString);
+        mysql_close(conn);
+        exit(1);
+    }
+
+    if (reply->type == REDIS_REPLY_ERROR) {
+        printf("Authentication failed: %s\n", reply->str);
+
+        redisFree(redis_context);
+        free(salt);
+        free(hash);
+        free(hashString);
+        mysql_close(conn);
+        exit(1);
+    }
+
+    freeReplyObject(reply);
+
+    // change database to JWT(2)
+    redisCommand(redis_context, "SELECT 2");
+
+    char *generated_token = generate_jwt(id);
+    
+    reply = redisCommand(redis_context, "LPUSH jwt:%s %s", generated_token, id);
+    if (reply == NULL) {
+        printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
+        redisFree(redis_context);
+        free(salt);
+        free(hash);
+        free(hashString);
+        mysql_close(conn);
+        exit(1);
+    } else {
+        freeReplyObject(reply);
+    }
+
+    redisFree(redis_context);
     free(salt);
     free(hash);
     free(hashString);
-
-    mysql_free_result(res);
     mysql_close(conn);
 
-    return result==1;
+    return generated_token;
+}
+
+char* generate_jwt(const char* username) {
+    jwt_t *jwt = NULL;
+    char *out = NULL;
+    time_t exp = time(NULL) + 3600; // Token will expire after 1 hour
+
+    if (jwt_new(&jwt) != 0) {
+        fprintf(stderr, "Error creating JWT object.\n");
+        return NULL;
+    }
+
+    // Add payload
+    jwt_add_grant(jwt, "username", username);
+    jwt_add_grant_int(jwt, "exp", exp);
+
+    // Generate JWT
+    jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)SECRET_KEY, 32);
+    out = jwt_encode_str(jwt);
+
+    if (!out) {
+        fprintf(stderr, "Error encoding JWT.\n");
+        jwt_free(jwt);
+        return NULL;
+    }
+
+    jwt_free(jwt);
+    return out;
+}
+
+int verify_jwt(const char* jwt_string, const char* username) {
+    jwt_t *jwt = NULL;
+    int ret = jwt_decode(&jwt, jwt_string, (unsigned char *)SECRET_KEY, 32);
+
+    if (ret != 0) {
+        fprintf(stderr, "Invalid JWT.\n");
+        return 0; // JWT is not valid
+    }
+
+    // Check for expiration
+    time_t exp = jwt_get_grant_int(jwt, "exp");
+    if (exp < time(NULL)) {
+        fprintf(stderr, "JWT has expired.\n");
+        jwt_free(jwt);
+        return 0; // JWT has expired
+    }
+
+    const char *token_username = jwt_get_grant(jwt, "username");
+    if(!token_username || strcmp(token_username, username) != 0){
+        fprintf(stderr, "Username mismatch. \n");
+        jwt_free(jwt);
+        return 0;
+    }
+
+    jwt_free(jwt);
+    return 1; // JWT is valid
 }
