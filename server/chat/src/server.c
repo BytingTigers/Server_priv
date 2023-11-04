@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "debug_print.h"
 #include "chat.h"
 
 #define MAX_CHATROOMS 100
@@ -41,7 +42,6 @@ void *handle_main_client(void *arg){
         free(cli);
         free(args);
         pthread_detach(pthread_self());
-        return;
     }
     else if(strcmp(reply->str, buffer) != 0){
         send(cli->sockfd, "ERROR", 5, 0);
@@ -50,7 +50,6 @@ void *handle_main_client(void *arg){
         free(cli);
         free(args);
         pthread_detach(pthread_self());
-        return;
         }
     else{
         send(cli->sockfd, "SUCCESS", 7, 0);
@@ -63,11 +62,11 @@ void *handle_main_client(void *arg){
         free(cli);
         free(args);
         pthread_detach(pthread_self());
-        return;
     }
 
     buffer[recv_len] = '\0';
     int mode = atoi(buffer);
+    DEBUG_PRINT("MODE RECEIVED %d\n",mode);
     switch(mode){
         case 1: // make chatroom
             if(chatroom_count >= MAX_CHATROOMS) {
