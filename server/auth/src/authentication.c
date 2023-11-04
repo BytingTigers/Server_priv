@@ -144,6 +144,10 @@ char* signin(const char* id, const char* password) {
     }
 
     res = mysql_store_result(conn);
+    if (res == NULL){ // vuln?
+        return NULL;
+    }
+    
     char *stringSalt = mysql_fetch_row(res)[0];
     unsigned char *salt = StringtoHex(stringSalt);
     unsigned char *hash = calloc(HASH_LENGTH,sizeof(char));
