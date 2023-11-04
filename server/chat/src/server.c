@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "debug_print.h"
 #include "chat.h"
 
 #define MAX_CHATROOMS 100
@@ -41,7 +42,6 @@ void *handle_main_client(void *arg){
         free(cli);
         free(args);
         pthread_detach(pthread_self());
-        return;
     }
     else if(strcmp(reply->str, buffer) != 0){
         send(cli->sockfd, "ERROR", 5, 0);
@@ -50,14 +50,12 @@ void *handle_main_client(void *arg){
         free(cli);
         free(args);
         pthread_detach(pthread_self());
-        return;
         }
     else{
         send(cli->sockfd, "SUCCESS", 7, 0);
     }
     // set mode sent via socket
-    int mode;
-    recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
+    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
     if(recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
@@ -65,7 +63,10 @@ void *handle_main_client(void *arg){
         free(args);
         pthread_detach(pthread_self());
     }
-    mode = ntohl(mode);
+
+    buffer[recv_len] = '\0';
+    int mode = atoi(buffer);
+    DEBUG_PRINT("MODE RECEIVED %d\n",mode);
     switch(mode){
         case 1: // make chatroom
             if(chatroom_count >= MAX_CHATROOMS) {
@@ -81,6 +82,15 @@ void *handle_main_client(void *arg){
                     memset(new_chatroom->clients, 0, sizeof(new_chatroom->clients));
                     new_chatroom->server_port = server_port[chatroom_count];
 
+                    // set title
+                    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+                    buffer[recv_len] = '\0';
+                    strncpy(new_chatroom->title, buffer, sizeof(buffer));
+                    // set password
+                    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+                    buffer[recv_len] = '\0';
+                    strncpy(new_chatroom->password, buffer, sizeof(buffer));
+
                     pthread_t chatroom_thread;
                     if(pthread_create(&chatroom_thread, NULL, &start_chat_server, (void*)&server_port[chatroom_count]) != 0) {
                         send(cli->sockfd, "Failed to create chatroom. Try again later.", 42, 0);
@@ -92,10 +102,10 @@ void *handle_main_client(void *arg){
             }
             break;
         // case 2: // list chatroom
-        //     char list_buffer[BUFF_LEN];
+        //     char list_buffer[BUFFER_SIZE];
         //     int offset = 0;
         //     for(int i = 0; i < chatroom_count; i++) {
-        //         offset += snprintf(list_buffer + offset, BUFF_LEN - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
+        //         offset += snprintf(list_buffer + offset, BUFFER_SIZE - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
         //     }
         //     if(chatroom_count == 0) {
         //         send(cli->sockfd, "No chatrooms available.", 23, 0);
