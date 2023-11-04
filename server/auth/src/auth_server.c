@@ -124,6 +124,8 @@ void *handle_client(void *arg) {
     DEBUG_PRINT("[Client: %d] ID: `%s`, PW: `%s`\n", cli->uid, ID, PW);
     DEBUG_PRINT("[Client: %d] Mode: %d\n", cli->uid, mode);
 
+    pthread_mutex_lock(&server->clients_mutex);
+
     if (mode == 1) { // mode 1 is signup
         if (signup(ID, PW)) {
             send(cli->sockfd, "ERROR", 6, 0);
@@ -139,6 +141,8 @@ void *handle_client(void *arg) {
             send(cli->sockfd, jwt, strlen(jwt) + 1, 0);
         }
     }
+
+    pthread_mutex_unlock(&server->clients_mutex);
 
     close(cli->sockfd);
     remove_client(cli->uid, server);
