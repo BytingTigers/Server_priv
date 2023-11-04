@@ -45,13 +45,16 @@ void *handle_main_client(void *arg){
         pthread_detach(pthread_self());
     }
     else if(!strcmp(reply->str, buffer)){
-            send(cli->sockfd, "ERROR", 5, 0);
-            close(cli->sockfd);
-            remove_client(cli->uid, server);
-            free(cli);
-            free(args);
-            pthread_detach(pthread_self());
+        send(cli->sockfd, "ERROR", 5, 0);
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         }
+    else{
+        send(cli->sockfd, "SUCCESS", 7, 0);
+    }
 
     // set mode sent via socket
     int mode;
