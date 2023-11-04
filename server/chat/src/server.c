@@ -3,7 +3,6 @@
 
 #include "chat.h"
 
-#define BUFF_LEN 1024
 #define MAX_CHATROOMS 100
 
 void display_help() {
@@ -29,13 +28,14 @@ void *handle_main_client(void *arg){
     char username[21]={0};
     recv_len = recv(cli->sockfd, username, 20, 0);
     username[recv_len] = '\0';
-
+    printf("DEBUG1");
     // authenticate JWT sent via socket
     recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
     buffer[recv_len]='\0';
     redisCommand(redis_context, "SELECT 2");
 
     redisReply *reply = redisCommand(redis_context, "GET %s", username);
+    printf("DEBUG2");
     if(reply == NULL){
         send(cli->sockfd, "ERROR", 5, 0);
         close(cli->sockfd);
@@ -44,7 +44,7 @@ void *handle_main_client(void *arg){
         free(args);
         pthread_detach(pthread_self());
     }
-    else if(!strcmp(reply->str, buffer)){
+    else if(strcmp(reply->str, buffer) == 0){
         send(cli->sockfd, "ERROR", 5, 0);
         close(cli->sockfd);
         remove_client(cli->uid, server);
@@ -55,7 +55,7 @@ void *handle_main_client(void *arg){
     else{
         send(cli->sockfd, "SUCCESS", 7, 0);
     }
-
+    printf("DEBUG3");
     // set mode sent via socket
     int mode;
     recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
@@ -67,10 +67,11 @@ void *handle_main_client(void *arg){
         free(args);
         pthread_detach(pthread_self());
     }
-
+    printf("DEBUG4");
     mode = ntohl(mode);
     switch(mode){
         case 1: // make chatroom
+            printf("DEBUG5");
             if(chatroom_count >= MAX_CHATROOMS) {
                 send(cli->sockfd, "Server capacity reached. Cannot create new chatroom.", 55, 0);
             } else {
