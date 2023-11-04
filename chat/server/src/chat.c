@@ -34,10 +34,15 @@ void send_message(char *s, int uid, chat_server_t *server, redisContext *redis_c
     for(int i=0; i<MAX_CLIENTS; ++i){
         if(server->clients[i]){
             char full_message[1024+10+3];
-            if(uid<0) // uid is -1 if message from server
+            if(uid == -1){ // uid is -1 if message from server
                 snprintf(full_message, sizeof(full_message), "SERVER: %s",s);
-            else
+            }
+            else if(uid == -2){ // uid is -2 if message loaded from redis
+                snprintf(full_message, sizeof(full_message), "%s",s);
+            }
+            else{
                 snprintf(full_message, sizeof(full_message), "%s: %s",server->clients[uid]->username,s);
+            }
 
             if(write(server->clients[i]->sockfd, full_message, strlen(full_message)) < 0){
                     perror("ERROR: write to descriptor failed");
@@ -81,13 +86,25 @@ void *handle_client(void *arg){
     }
     cli->username[username_len] = '\0';
 
+    // retrieve recent chats from redis
+    char key[32];
+    snprintf(key, sizeof(key), "chatroom_%d",server->server_port);
+    redisReply *reply = redisCommand(redis_context, "LRANGE %s 0 20", key); // load recent 20 messages
+    if(reply==NULL){
+        sprintf(buffer,"Failed to load message from Redis\n");
+        send_message(buffer,-1, server, NULL);
+    }else{
+        for(int element_id=reply->elements - 1 ;element_id >= 0; element_id--){
+            snprintf(buffer, sizeof(buffer), "%s", reply->element[element_id]->str);
+            send_message(buffer, -2, server, NULL);
+        }
+        freeReplyObject(reply);  
+    }
+
     // print join message
     char join_message[10+20];
     snprintf(join_message,sizeof(join_message),"%s has joined.\n",cli->username);
     send_message(join_message, -1, server, NULL);
-
-    // TODO: retrieve recent chats from redis
-
 
     // Receive data from client
     while(1){
@@ -193,6 +210,9 @@ void *start_chat_server(void *port){
 
     freeReplyObject(reply);
 
+    // change database to message(DB 1)
+    redisCommand(redis_context, "SELECT 1");
+    
     // Accept clients
     while(1){
         socklen_t clilen = sizeof(cli_addr);
