@@ -56,16 +56,18 @@ void *handle_main_client(void *arg){
         send(cli->sockfd, "SUCCESS", 7, 0);
     }
     // set mode sent via socket
-    int mode;
-    recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
+    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
     if(recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
         free(args);
         pthread_detach(pthread_self());
+        return;
     }
-    mode = ntohl(mode);
+
+    buffer[recv_len] = '\0';
+    int mode = atoi(buffer);
     switch(mode){
         case 1: // make chatroom
             if(chatroom_count >= MAX_CHATROOMS) {
