@@ -93,18 +93,18 @@ void *handle_main_client(void *arg){
                 }
             }
             break;
-        // case 2: // list chatroom
-        //     char list_buffer[BUFF_LEN];
-        //     int offset = 0;
-        //     for(int i = 0; i < chatroom_count; i++) {
-        //         offset += snprintf(list_buffer + offset, BUFF_LEN - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
-        //     }
-        //     if(chatroom_count == 0) {
-        //         send(cli->sockfd, "No chatrooms available.", 23, 0);
-        //     } else {
-        //         send(cli->sockfd, list_buffer, strlen(list_buffer), 0);
-        //     }
-        //     break;
+        case 2: // list chatroom
+            char list_buffer[BUFFER_SIZE];
+            int offset = 0;
+            for(int i = 0; i < chatroom_count; i++) {
+                offset += snprintf(list_buffer + offset, BUFFER_SIZE - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
+            }
+            if(chatroom_count == 0) {
+                send(cli->sockfd, "No chatrooms available.", 23, 0);
+            } else {
+                send(cli->sockfd, list_buffer, strlen(list_buffer), 0);
+            }
+            break;
         // case 3: // join chatroom
         //     char join_buffer[BUFF_LEN];
         //     recv_len = recv(cli->sockfd, join_buffer, sizeof(join_buffer), 0);
