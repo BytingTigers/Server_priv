@@ -13,6 +13,8 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
 
+#define REDIS_SERVER "localhost"
+#define REDIS_PORT 6379
 typedef struct {
     struct sockaddr_in address;
     int sockfd;
