@@ -59,7 +59,7 @@ void *handle_main_client(void *arg){
     // set mode sent via socket
     int mode;
     recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
-
+    printf("%d",mode);
     if(recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
