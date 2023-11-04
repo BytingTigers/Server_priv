@@ -1,12 +1,13 @@
+#include "authentication.h"
+#include "debug_print.h"
 #include <arpa/inet.h>
+#include <hiredis/hiredis.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <signal.h>
-#include <hiredis/hiredis.h>
-#include "authentication.h"
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
@@ -35,8 +36,8 @@ typedef struct {
 void add_client(client_t *cl, chat_server_t *server) {
     pthread_mutex_lock(&server->clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i) {
-        if(!server->clients[i]) {
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        if (!server->clients[i]) {
             server->clients[i] = cl;
             break;
         }
@@ -48,9 +49,9 @@ void add_client(client_t *cl, chat_server_t *server) {
 void remove_client(int uid, chat_server_t *server) {
     pthread_mutex_lock(&server->clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i) {
-        if(server->clients[i]) {
-            if(server->clients[i]->uid == uid) {
+    for (int i = 0; i < MAX_CLIENTS; ++i) {
+        if (server->clients[i]) {
+            if (server->clients[i]->uid == uid) {
                 server->clients[i] = NULL;
                 break;
             }
@@ -61,18 +62,21 @@ void remove_client(int uid, chat_server_t *server) {
 }
 
 void *handle_client(void *arg) {
+
+    DEBUG_PRINT("A new thread created for handling the new client.\n");
+
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
+
     thread_args_t *args = (thread_args_t *)arg;
     client_t *cli = args->client;
     chat_server_t *server = args->server;
     redisContext *redis_context = args->redis_context;
 
     // set mode sent via socket
-    int mode;
-    int recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
+    int recv_len = recv(cli->sockfd, &buffer, sizeof(buffer), 0);
 
-    if(recv_len <= 0) {
+    if (recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
@@ -80,13 +84,15 @@ void *handle_client(void *arg) {
         pthread_detach(pthread_self());
     }
 
-    mode = ntohl(mode);
-    char IDPW[20+30+2];
-    char ID[20]= {0}, PW[30]= {0};
-    char* token;
+    int mode = atoi(buffer);
+
+    char IDPW[20 + 30 + 2];
+    char ID[20] = {0}, PW[30] = {0};
+    char *token;
 
     recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
-    if(recv_len<=0) {
+    DEBUG_PRINT("Data received: %s\n", IDPW);
+    if (recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
@@ -95,7 +101,7 @@ void *handle_client(void *arg) {
     }
 
     IDPW[recv_len] = '\0';
-    token = strtok(IDPW,".");
+    token = strtok(IDPW, ".");
     if (token != NULL) {
         strncpy(ID, token, sizeof(ID) - 1);
         token = strtok(NULL, ".");
@@ -104,22 +110,22 @@ void *handle_client(void *arg) {
         }
     }
 
-    if(mode == 1) { // mode 1 is signup
-        if(signup(ID, PW)) {
+    DEBUG_PRINT("ID: %s\nPW: %s\n", ID, PW);
+    DEBUG_PRINT("Mode: %d\n", mode);
+
+    if (mode == 1) { // mode 1 is signup
+        if (signup(ID, PW)) {
             send(cli->sockfd, "ERROR", 6, 0);
+        } else {
+            send(cli->sockfd, "SUCCESS", 7, 0);
         }
-        else {
-            send(cli->sockfd,"SUCCESS",7,0);
-        }
-    }
-    else if(mode == 2) { // mode 2 is signin
-        char* jwt;
+    } else if (mode == 2) { // mode 2 is signin
+        char *jwt;
         jwt = signin(ID, PW);
-        if(jwt == NULL) {
+        if (jwt == NULL) {
             send(cli->sockfd, "ERROR", 6, 0);
-        }
-        else {
-            send(cli->sockfd,jwt,strlen(jwt)+1,0);
+        } else {
+            send(cli->sockfd, jwt, strlen(jwt) + 1, 0);
         }
     }
 
@@ -130,7 +136,7 @@ void *handle_client(void *arg) {
     pthread_detach(pthread_self());
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
     if (argc != 2) {
         fprintf(stdout, "Usage: start [port]\n");
@@ -141,7 +147,8 @@ int main(int argc, char** argv) {
 
     if (server_port == 0) {
         char err_msg[BUFFER_SIZE];
-        snprintf(err_msg, sizeof(err_msg), "Cound not convert to a port number: %s", argv[1]);
+        snprintf(err_msg, sizeof(err_msg),
+                 "Cound not convert to a port number: %s", argv[1]);
         perror(err_msg);
     }
 
@@ -164,10 +171,12 @@ int main(int argc, char** argv) {
     serv_addr.sin_port = htons(server.server_port);
 
     // Bind
-    if(bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (bind(listenfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("ERROR: Socket binding failed");
         return -1;
     }
+
+    DEBUG_PRINT("Bind succeeded.\n");
 
     // Listen
     if (listen(listenfd, 10) < 0) {
@@ -175,12 +184,12 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    printf("<[ AUTH SERVER at PORT %d STARTED ]>\n",server_port);
+    DEBUG_PRINT("Listen started.\n");
 
     // REDIS SETUP
 
     // Connect to Redis server
-    redisContext *redis_context = redisConnect("home.hokuma.pro", 6380);
+    redisContext *redis_context = redisConnect(REDIS_HOST, REDIS_PORT);
     if (redis_context == NULL || redis_context->err) {
         if (redis_context) {
             printf("Error: %s\n", redis_context->errstr);
@@ -191,34 +200,20 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    // authentication
-    const char *password = "bytingtigers";
-    redisReply *reply = redisCommand(redis_context, "AUTH %s", password);
-
-    if (reply == NULL) {
-        printf("Error: %s\n", redis_context->errstr);
-        redisFree(redis_context);
-        exit(1);
-    }
-
-    if (reply->type == REDIS_REPLY_ERROR) {
-        printf("Authentication failed: %s\n", reply->str);
-        redisFree(redis_context);
-        exit(1);
-    }
-
-    freeReplyObject(reply);
+    printf("<[ AUTH SERVER at PORT %d STARTED ]>\n", server_port);
 
     // change database to JWT(DB 2)
     redisCommand(redis_context, "SELECT 2");
 
     // Accept clients
-    while(1) {
+    while (1) {
         socklen_t clilen = sizeof(cli_addr);
-        connfd = accept(listenfd, (struct sockaddr*)&cli_addr, &clilen);
+        connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
+
+        DEBUG_PRINT("The connection accepted.\n");
 
         // Check if max clients is reached
-        if((client_count + 1) == MAX_CLIENTS) {
+        if ((client_count + 1) == MAX_CLIENTS) {
             close(connfd);
             continue;
         }
@@ -246,7 +241,7 @@ int main(int argc, char** argv) {
 
         // Add client to the array and fork thread
         add_client(cli, &server);
-        if (pthread_create(&tid, NULL, &handle_client, (void*)args) != 0) {
+        if (pthread_create(&tid, NULL, &handle_client, (void *)args) != 0) {
             perror("Failed to create thread");
             free(cli);
             free(args);
