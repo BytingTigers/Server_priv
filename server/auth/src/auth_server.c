@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define USERNAME_MAX_LEN 10
+#define PASSWORD_MAX_LEN 20
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
 
@@ -34,6 +36,7 @@ typedef struct {
 } thread_args_t;
 
 void add_client(client_t *cl, chat_server_t *server) {
+
     pthread_mutex_lock(&server->clients_mutex);
 
     for (int i = 0; i < MAX_CLIENTS; ++i) {
@@ -47,6 +50,7 @@ void add_client(client_t *cl, chat_server_t *server) {
 }
 
 void remove_client(int uid, chat_server_t *server) {
+
     pthread_mutex_lock(&server->clients_mutex);
 
     for (int i = 0; i < MAX_CLIENTS; ++i) {
@@ -63,8 +67,6 @@ void remove_client(int uid, chat_server_t *server) {
 
 void *handle_client(void *arg) {
 
-    DEBUG_PRINT("A new thread created for handling the new client.\n");
-
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
 
@@ -72,6 +74,10 @@ void *handle_client(void *arg) {
     client_t *cli = args->client;
     chat_server_t *server = args->server;
     redisContext *redis_context = args->redis_context;
+
+    DEBUG_PRINT(
+        "[Client: %d] A new thread created for handling the new client.\n",
+        cli->uid);
 
     // set mode sent via socket
     int recv_len = recv(cli->sockfd, &buffer, sizeof(buffer), 0);
@@ -91,13 +97,18 @@ void *handle_client(void *arg) {
     char *token;
 
     recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
-    DEBUG_PRINT("Data received: %s\n", IDPW);
-    if (recv_len <= 0) {
+    DEBUG_PRINT("[Client: %d] Data received: %s\n", cli->uid, IDPW);
+    if (recv_len == 0) {
+
+        DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
+
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
         free(args);
         pthread_detach(pthread_self());
+
+        return NULL;
     }
 
     IDPW[recv_len] = '\0';
@@ -110,8 +121,8 @@ void *handle_client(void *arg) {
         }
     }
 
-    DEBUG_PRINT("ID: %s\nPW: %s\n", ID, PW);
-    DEBUG_PRINT("Mode: %d\n", mode);
+    DEBUG_PRINT("[Client: %d] ID: `%s`, PW: `%s`\n", cli->uid, ID, PW);
+    DEBUG_PRINT("[Client: %d] Mode: %d\n", cli->uid, mode);
 
     if (mode == 1) { // mode 1 is signup
         if (signup(ID, PW)) {
@@ -134,6 +145,8 @@ void *handle_client(void *arg) {
     free(cli);
     free(args);
     pthread_detach(pthread_self());
+
+    return NULL;
 }
 
 int main(int argc, char **argv) {
@@ -187,7 +200,6 @@ int main(int argc, char **argv) {
     DEBUG_PRINT("Listen started.\n");
 
     // REDIS SETUP
-
     // Connect to Redis server
     redisContext *redis_context = redisConnect(REDIS_HOST, REDIS_PORT);
     if (redis_context == NULL || redis_context->err) {
@@ -202,15 +214,17 @@ int main(int argc, char **argv) {
 
     printf("<[ AUTH SERVER at PORT %d STARTED ]>\n", server_port);
 
-    // change database to JWT(DB 2)
-    redisCommand(redis_context, "SELECT 2");
+    redisCommand(redis_context, "SELECT 2"); // Database 2 is for auth.
 
-    // Accept clients
+    DEBUG_PRINT("The connection to Redis is established.\n");
+
+    // Event loops
     while (1) {
+
         socklen_t clilen = sizeof(cli_addr);
         connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
-        DEBUG_PRINT("The connection accepted.\n");
+        DEBUG_PRINT("The new connection accepted.\n");
 
         // Check if max clients is reached
         if ((client_count + 1) == MAX_CLIENTS) {
@@ -235,6 +249,7 @@ int main(int argc, char **argv) {
             free(cli);
             continue;
         }
+
         args->client = cli;
         args->server = &server;
         args->redis_context = redis_context;
@@ -252,7 +267,9 @@ int main(int argc, char **argv) {
         // Reduce CPU usage
         sleep(1);
     }
+
     pthread_mutex_destroy(&server.clients_mutex);
+
     close(listenfd);
 
     return 0;
