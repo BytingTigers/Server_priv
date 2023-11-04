@@ -2,4 +2,4 @@
 all: docker docker-run
 
 docker:
-	docker build -t --platform=linux/amd64 server .
+	docker build --platform=linux/amd64 -t server .
