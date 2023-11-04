@@ -39,9 +39,8 @@ WORKDIR /usr/local/src/openssl-1.1.1n
 RUN ./config && make && make install
 
 # Install libjwt manually
-COPY ./lib/libjwt /usr/local/src/libjwt
-# WORKDIR /usr/local/src
-# RUN git clone https://github.com/benmcollins/libjwt.git --branch v1.12.0 --single-branch
+WORKDIR /usr/local/src
+RUN git clone https://github.com/benmcollins/libjwt.git --branch v1.12.0 --single-branch
 WORKDIR /usr/local/src/libjwt
 RUN autoreconf -i && \
     ./configure && \
