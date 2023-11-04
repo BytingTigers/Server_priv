@@ -46,7 +46,7 @@ char* StringtoHex(const char* hex) {
     return hexString;
 }
 
-void createSaltedHash(const char *password, unsigned char *salt, unsigned char *hash){
+void createSaltedHash(const char *password, unsigned char *salt, unsigned char *hash) {
     unsigned char data[SALT_LENGTH + strlen(password)];
 
     memcpy(data, salt, SALT_LENGTH);
@@ -55,8 +55,7 @@ void createSaltedHash(const char *password, unsigned char *salt, unsigned char *
     SHA256(data, SALT_LENGTH + strlen(password), hash);
 }
 
-
-int signup(const char* username, const char* password){
+int signup(const char* username, const char* password) {
     MYSQL *conn;
     MYSQL_RES *res;
     char query[512];
@@ -89,12 +88,12 @@ int signup(const char* username, const char* password){
     salt = calloc(sizeof(char), SALT_LENGTH);
     password_hash = calloc(sizeof(char), HASH_LENGTH);
 
-    if(!salt || !password_hash){
+    if(!salt || !password_hash) {
         fprintf(stderr,"calloc error");
         exit(1);
     }
 
-    if(!RAND_bytes(salt, SALT_LENGTH)){
+    if(!RAND_bytes(salt, SALT_LENGTH)) {
         fprintf(stderr, "error generating salt.\n");
         exit(1);
     }
@@ -119,7 +118,7 @@ int signup(const char* username, const char* password){
     return 0;
 }
 
-char* signin(const char* id, const char* password){
+char* signin(const char* id, const char* password) {
     MYSQL *conn;
     MYSQL_RES *res;
     char query[512];
@@ -165,7 +164,7 @@ char* signin(const char* id, const char* password){
     mysql_free_result(res);
 
     // jwt generation
-    redisContext *redis_context = redisConnect("home.hokuma.pro",6380);
+    redisContext *redis_context = redisConnect(REDIS_HOST, REDIS_PORT);
     if (redis_context == NULL || redis_context->err) {
         if (redis_context) {
             printf("Error: %s\n", redis_context->errstr);
@@ -180,48 +179,45 @@ char* signin(const char* id, const char* password){
 
         return NULL;
     }
-    
-    // redis authentication
+
     redisReply *reply;
-    reply = redisCommand(redis_context, "AUTH %s", REDIS_PASS);
 
-    if (reply == NULL) {
-        printf("Error: %s\n", redis_context->errstr);
+    // redis authentication
+    /* reply = redisCommand(redis_context, "AUTH %s", REDIS_PASS); */
 
-        redisFree(redis_context);
-        free(salt);
-        free(hash);
-        free(hashString);
-        mysql_close(conn);
-        return NULL;
-    }
+    /* if (reply == NULL) { */
+    /*     printf("Error: %s\n", redis_context->errstr); */
 
-    if (reply->type == REDIS_REPLY_ERROR) {
-        printf("Authentication failed: %s\n", reply->str);
+    /*     redisFree(redis_context); */
+    /*     free(salt); */
+    /*     free(hash); */
+    /*     free(hashString); */
+    /*     mysql_close(conn); */
+    /*     exit(1); */
+    /* } */
 
-        redisFree(redis_context);
-        free(salt);
-        free(hash);
-        free(hashString);
-        mysql_close(conn);
-        return NULL;
-    }
+    /* if (reply->type == REDIS_REPLY_ERROR) { */
+    /*     printf("Authentication failed: %s\n", reply->str); */
 
-    freeReplyObject(reply);
+    /*     redisFree(redis_context); */
+    /*     free(salt); */
+    /*     free(hash); */
+    /*     free(hashString); */
+    /*     mysql_close(conn); */
+    /*     exit(1); */
+    /* } */
+
+    /* freeReplyObject(reply); */
 
     // change database to JWT(2)
     redisCommand(redis_context, "SELECT 2");
     char *jwt = NULL;
 
-    // check if jwt exists
-    reply = redisCommand(redis_context, "EXISTS %s", id);
-    if(reply->integer){   
-        freeReplyObject(reply);
+    char *generated_token = generate_jwt(id);
 
-        reply = redisCommand(redis_context, "GET %s", id);    
-        jwt = strdup(reply->str);
-
-        freeReplyObject(reply);
+    reply = redisCommand(redis_context, "LPUSH jwt:%s %s", generated_token, id);
+    if (reply == NULL) {
+        printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
         redisFree(redis_context);
         free(salt);
         free(hash);
@@ -229,7 +225,7 @@ char* signin(const char* id, const char* password){
         mysql_close(conn);
 
         return jwt;
-    }else{
+    } else {
         jwt = strdup(generate_jwt(id));
         reply = redisCommand(redis_context, "SETEX %s %d %s", id, 3600, jwt);
         if (reply == NULL) {
@@ -300,7 +296,7 @@ int verify_jwt(const char* jwt_string, const char* username) {
     }
 
     const char *token_username = jwt_get_grant(jwt, "username");
-    if(!token_username || strcmp(token_username, username) != 0){
+    if(!token_username || strcmp(token_username, username) != 0) {
         fprintf(stderr, "Username mismatch. \n");
         jwt_free(jwt);
         return 0;

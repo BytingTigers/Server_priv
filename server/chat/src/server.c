@@ -6,7 +6,7 @@
 #define BUFF_LEN 1024
 
 void display_help() {
-    fprintf(stdout, "Usage: server [port]\n");
+    fprintf(stdout, "Usage: start [port]\n");
 }
 
 int main(int argc, char* argv[]) {

@@ -32,11 +32,11 @@ typedef struct {
     redisContext *redis_context;
 } thread_args_t;
 
-void add_client(client_t *cl, chat_server_t *server){
+void add_client(client_t *cl, chat_server_t *server) {
     pthread_mutex_lock(&server->clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i){
-        if(!server->clients[i]){
+    for(int i=0; i < MAX_CLIENTS; ++i) {
+        if(!server->clients[i]) {
             server->clients[i] = cl;
             break;
         }
@@ -45,12 +45,12 @@ void add_client(client_t *cl, chat_server_t *server){
     pthread_mutex_unlock(&server->clients_mutex);
 }
 
-void remove_client(int uid, chat_server_t *server){
+void remove_client(int uid, chat_server_t *server) {
     pthread_mutex_lock(&server->clients_mutex);
 
-    for(int i=0; i < MAX_CLIENTS; ++i){
-        if(server->clients[i]){
-            if(server->clients[i]->uid == uid){
+    for(int i=0; i < MAX_CLIENTS; ++i) {
+        if(server->clients[i]) {
+            if(server->clients[i]->uid == uid) {
                 server->clients[i] = NULL;
                 break;
             }
@@ -60,7 +60,7 @@ void remove_client(int uid, chat_server_t *server){
     pthread_mutex_unlock(&server->clients_mutex);
 }
 
-void *handle_client(void *arg){
+void *handle_client(void *arg) {
     char buffer[BUFFER_SIZE];
     int leave_flag = 0;
     thread_args_t *args = (thread_args_t *)arg;
@@ -72,7 +72,7 @@ void *handle_client(void *arg){
     int mode;
     int recv_len = recv(cli->sockfd, &mode, sizeof(mode), 0);
 
-    if(recv_len <= 0){
+    if(recv_len <= 0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
@@ -82,11 +82,11 @@ void *handle_client(void *arg){
 
     mode = ntohl(mode);
     char IDPW[20+30+2];
-    char ID[20]={0}, PW[30]={0};
+    char ID[20]= {0}, PW[30]= {0};
     char* token;
 
     recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
-    if(recv_len<=0){
+    if(recv_len<=0) {
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
@@ -97,28 +97,28 @@ void *handle_client(void *arg){
     IDPW[recv_len] = '\0';
     token = strtok(IDPW,".");
     if (token != NULL) {
-            strncpy(ID, token, sizeof(ID) - 1);
-            token = strtok(NULL, ".");
-            if (token != NULL) {
-                strncpy(PW, token, sizeof(PW) - 1);
-            }
+        strncpy(ID, token, sizeof(ID) - 1);
+        token = strtok(NULL, ".");
+        if (token != NULL) {
+            strncpy(PW, token, sizeof(PW) - 1);
+        }
     }
 
-    if(mode == 1){ // mode 1 is signup
-        if(signup(ID, PW)){
+    if(mode == 1) { // mode 1 is signup
+        if(signup(ID, PW)) {
             send(cli->sockfd, "ERROR", 6, 0);
         }
-        else{
+        else {
             send(cli->sockfd,"SUCCESS",7,0);
         }
     }
-    else if(mode == 2){ // mode 2 is signin
+    else if(mode == 2) { // mode 2 is signin
         char* jwt;
         jwt = signin(ID, PW);
-        if(jwt == NULL){
+        if(jwt == NULL) {
             send(cli->sockfd, "ERROR", 6, 0);
         }
-        else{
+        else {
             send(cli->sockfd,jwt,strlen(jwt)+1,0);
         }
     }
@@ -130,8 +130,20 @@ void *handle_client(void *arg){
     pthread_detach(pthread_self());
 }
 
-int main(){
-    int server_port = 5000;
+int main(int argc, char** argv) {
+
+    if (argc != 2) {
+        fprintf(stdout, "Usage: start [port]\n");
+    }
+
+    int server_port = atoi(argv[1]);
+
+    if (server_port == 0) {
+        char err_msg[BUFFER_SIZE];
+        snprintf(err_msg, sizeof(err_msg), "Cound not convert to a port number: %s", argv[1]);
+        perror(err_msg);
+    }
+
     chat_server_t server;
 
     pthread_mutex_init(&server.clients_mutex, NULL);
@@ -151,7 +163,7 @@ int main(){
     serv_addr.sin_port = htons(server.server_port);
 
     // Bind
-    if(bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0){
+    if(bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("ERROR: Socket binding failed");
         return -1;
     }
@@ -198,14 +210,15 @@ int main(){
 
     // change database to JWT(DB 2)
     redisCommand(redis_context, "SELECT 2");
-    
+
     // Accept clients
-    while(1){
+    while(1) {
         socklen_t clilen = sizeof(cli_addr);
         connfd = accept(listenfd, (struct sockaddr*)&cli_addr, &clilen);
 
         // Check if max clients is reached
-        if((client_count + 1) == MAX_CLIENTS){;
+        if((client_count + 1) == MAX_CLIENTS) {
+            ;
             close(connfd);
             continue;
         }

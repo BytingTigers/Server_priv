@@ -6,12 +6,15 @@
 
 #define SECRET_KEY "OP0GVA1ABbK04hC46NkEYsBAykjUNe0dvf+COdW/YGI="
 
-#define DB_HOST "home.hokuma.pro"
-#define DB_USER "bytingtigers"
-#define DB_PASS "bytingtigers"
+#define REDIS_HOST "localhost"
+#define REDIS_PORT 6379
+
+#define DB_HOST "localhost"
+#define DB_USER "root"
+#define DB_PASS ""
 #define DB_NAME "auth"
-#define DB_PORT 6381
-#define REDIS_PASS "bytingtigers"
+#define DB_PORT 3306
+// #define REDIS_PASS "bytingtigers"
 
 char* toHexString(unsigned char* data, size_t dataLength);
 
