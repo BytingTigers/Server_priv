@@ -11,7 +11,45 @@
 #include <string.h>
 #include <time.h>
 
-char *toHexString(unsigned char *data, size_t dataLength) {
+#define QUERY_LEN 512
+
+char *sanitize_sql_input(const char *input) {
+
+    if (input == NULL) {
+        return NULL;
+    }
+
+    size_t count = 0;
+    for (const char *p = input; *p; p++) {
+        if (*p == '\'') {
+            count++;
+        }
+    }
+
+    size_t new_length = strlen(input) + count + 1;
+    char *sanitized = malloc(new_length);
+    if (sanitized == NULL) {
+        return NULL; // Allocation failed
+    }
+
+    const char *src = input;
+    char *dst = sanitized;
+    while (*src) {
+        if (*src == '\'') {
+            *dst++ = '\'';
+            *dst++ = '\'';
+            src++;
+        } else {
+            *dst++ = *src++;
+        }
+    }
+    *dst = '\0';
+
+    return sanitized;
+}
+
+char *hex_to_string(unsigned char *data, size_t dataLength) {
+
     char *hexString = calloc(dataLength * 2 + 1, sizeof(char));
 
     if (!hexString) {
@@ -27,9 +65,11 @@ char *toHexString(unsigned char *data, size_t dataLength) {
     return hexString;
 }
 
-char *StringtoHex(const char *hex) {
-    if (!hex)
+char *string_to_hex(const char *hex) {
+
+    if (!hex) {
         return NULL;
+    }
 
     size_t hexLen = strlen(hex) / 2;
 
@@ -45,11 +85,12 @@ char *StringtoHex(const char *hex) {
     }
 
     hexString[hexLen] = '\0';
+
     return hexString;
 }
 
-void createSaltedHash(const char *password, unsigned char *salt,
-                      unsigned char *hash) {
+void create_salted_hash(const char *password, unsigned char *salt,
+                        unsigned char *hash) {
 
     unsigned char data[SALT_LENGTH + strlen(password)];
 
@@ -66,7 +107,7 @@ int signup(const char *username, const char *password) {
     MYSQL *conn;
     MYSQL_RES *res;
 
-    char query[512];
+    char query[QUERY_LEN];
 
     conn = mysql_init(NULL);
 
@@ -82,10 +123,12 @@ int signup(const char *username, const char *password) {
         return EXIT_FAILURE;
     }
 
-    // existing username check
+    char *username_s = sanitize_sql_input(username);
     snprintf(query, sizeof(query), "SELECT * FROM users WHERE username='%s'",
-             username);
+             username_s);
+    free(username_s);
 
+    DEBUG_PRINT("SQL Query: %s\n", query);
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         return EXIT_FAILURE;
@@ -95,7 +138,7 @@ int signup(const char *username, const char *password) {
     int num_rows = mysql_num_rows(res);
 
     if (num_rows > 0) {
-        DEBUG_PRINT("User already existing, num_rows: %d\n", num_rows);
+        DEBUG_PRINT("User already existing, username: %s\n", username);
         return -1;
     }
 
@@ -107,24 +150,31 @@ int signup(const char *username, const char *password) {
 
     if (!salt || !password_hash) {
         fprintf(stderr, "calloc error");
-        exit(1);
+        return -1;
     }
 
     if (!RAND_bytes(salt, SALT_LENGTH)) {
         fprintf(stderr, "error generating salt.\n");
-        exit(1);
+        return -1;
     }
 
-    createSaltedHash(password, salt, password_hash);
+    create_salted_hash(password, salt, password_hash);
 
-    char *hex_salt = toHexString(salt, SALT_LENGTH);
-    char *hex_hash = toHexString(password_hash, HASH_LENGTH);
+    char *hex_salt = hex_to_string(salt, SALT_LENGTH);
+    char *hex_hash = hex_to_string(password_hash, HASH_LENGTH);
 
+    username_s = sanitize_sql_input(username);
+    char *hex_hash_s = sanitize_sql_input(hex_hash);
+    char *hex_salt_s = sanitize_sql_input(hex_salt);
     snprintf(query, sizeof(query),
              "INSERT INTO users(username, password_hash, salt) "
              "values('%s','%s','%s')",
-             username, hex_hash, hex_salt);
+             username_s, hex_hash_s, hex_salt_s);
+    free(username_s);
+    free(hex_hash_s);
+    free(hex_salt_s);
 
+    DEBUG_PRINT("SQL Query: %s\n", query);
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         return EXIT_FAILURE;
@@ -132,19 +182,24 @@ int signup(const char *username, const char *password) {
 
     DEBUG_PRINT("Successfully generated a new user.");
 
+close_conn:
+
     free(salt);
     free(password_hash);
     free(hex_salt);
     free(hex_hash);
     mysql_close(conn);
     mysql_free_result(res);
+
     return 0;
 }
 
-char *signin(const char *id, const char *password) {
+const char *signin(const char *id, const char *password) {
+
     MYSQL *conn;
     MYSQL_RES *res;
-    char query[512];
+
+    char query[QUERY_LEN];
 
     conn = mysql_init(NULL);
 
@@ -160,8 +215,13 @@ char *signin(const char *id, const char *password) {
         return NULL;
     }
 
+    char *id_s = sanitize_sql_input(id);
     snprintf(query, sizeof(query), "SELECT salt FROM users WHERE username='%s'",
-             id);
+             id_s);
+    free(id_s);
+
+    DEBUG_PRINT("SQL Query: %s\n", query);
+
     // overflow possible
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
@@ -172,28 +232,43 @@ char *signin(const char *id, const char *password) {
     if (mysql_num_rows(res) == 0) { // vuln?
         return NULL;
     }
+    mysql_free_result(res);
 
-    char *stringSalt = mysql_fetch_row(res)[0];
-    char *salt = StringtoHex(stringSalt);
+    char *string_salt = mysql_fetch_row(res)[0];
+    unsigned char *salt = (unsigned char *)string_to_hex(string_salt);
     unsigned char *hash = calloc(HASH_LENGTH, sizeof(char));
-    if (!hash || !salt)
+    if (!hash || !salt) {
         return NULL;
+    }
 
-    createSaltedHash(password, salt, hash);
-    char *hashString = toHexString(hash, HASH_LENGTH);
+    create_salted_hash(password, salt, hash);
+    char *hash_string = hex_to_string(hash, HASH_LENGTH);
 
+    id = sanitize_sql_input(id);
+    hash_string = sanitize_sql_input(hash_string);
     snprintf(
         query, sizeof(query),
         "SELECT salt FROM users WHERE username='%s' and password_hash='%s'", id,
-        hashString);
+        hash_string);
+
     // overflow possible
+    DEBUG_PRINT("SQL Query: %s\n", query);
     if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         return NULL;
     }
+
     res = mysql_store_result(conn);
     int result = mysql_num_rows(res);
     mysql_free_result(res);
+
+    if (result != 1) {
+        free(salt);
+        free(hash);
+        free(hash_string);
+        mysql_close(conn);
+        return NULL;
+    }
 
     // jwt generation
     redisContext *redis_context = redisConnect(REDIS_HOST, REDIS_PORT);
@@ -206,45 +281,16 @@ char *signin(const char *id, const char *password) {
         }
         free(salt);
         free(hash);
-        free(hashString);
+        free(hash_string);
         mysql_close(conn);
-
         return NULL;
     }
 
     redisReply *reply;
 
-    // redis authentication
-    /* reply = redisCommand(redis_context, "AUTH %s", REDIS_PASS); */
-
-    /* if (reply == NULL) { */
-    /*     printf("Error: %s\n", redis_context->errstr); */
-
-    /*     redisFree(redis_context); */
-    /*     free(salt); */
-    /*     free(hash); */
-    /*     free(hashString); */
-    /*     mysql_close(conn); */
-    /*     exit(1); */
-    /* } */
-
-    /* if (reply->type == REDIS_REPLY_ERROR) { */
-    /*     printf("Authentication failed: %s\n", reply->str); */
-
-    /*     redisFree(redis_context); */
-    /*     free(salt); */
-    /*     free(hash); */
-    /*     free(hashString); */
-    /*     mysql_close(conn); */
-    /*     exit(1); */
-    /* } */
-
-    /* freeReplyObject(reply); */
-
     // change database to JWT(2)
     redisCommand(redis_context, "SELECT 2");
     char *jwt = NULL;
-
     char *generated_token = generate_jwt(id);
 
     reply = redisCommand(redis_context, "LPUSH jwt:%s %s", generated_token, id);
@@ -253,9 +299,8 @@ char *signin(const char *id, const char *password) {
         redisFree(redis_context);
         free(salt);
         free(hash);
-        free(hashString);
+        free(hash_string);
         mysql_close(conn);
-
         return jwt;
     } else {
         jwt = strdup(generate_jwt(id));
@@ -265,25 +310,24 @@ char *signin(const char *id, const char *password) {
             redisFree(redis_context);
             free(salt);
             free(hash);
-            free(hashString);
+            free(hash_string);
             mysql_close(conn);
             return NULL;
-
         } else {
             freeReplyObject(reply);
         }
         redisFree(redis_context);
         free(salt);
         free(hash);
-        free(hashString);
+        free(hash_string);
         mysql_close(conn);
-
         return jwt;
     }
 }
 
 char *generate_jwt(const char *username) {
     jwt_t *jwt = NULL;
+
     char *out = NULL;
     time_t exp = time(NULL) + 3600; // Token will expire after 1 hour
 
@@ -297,10 +341,11 @@ char *generate_jwt(const char *username) {
     jwt_add_grant_int(jwt, "exp", exp);
 
     // Generate JWT
-    jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)SECRET_KEY, 32);
+    jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)SECRET_KEY,
+                SECRET_KEY_LEN);
     out = jwt_encode_str(jwt);
 
-    if (!out) {
+    if (out == NULL) {
         fprintf(stderr, "Error encoding JWT.\n");
         jwt_free(jwt);
         return NULL;
@@ -311,8 +356,11 @@ char *generate_jwt(const char *username) {
 }
 
 int verify_jwt(const char *jwt_string, const char *username) {
+
     jwt_t *jwt = NULL;
-    int ret = jwt_decode(&jwt, jwt_string, (unsigned char *)SECRET_KEY, 32);
+
+    int ret = jwt_decode(&jwt, jwt_string, (unsigned char *)SECRET_KEY,
+                         SECRET_KEY_LEN);
 
     if (ret != 0) {
         fprintf(stderr, "Invalid JWT.\n");

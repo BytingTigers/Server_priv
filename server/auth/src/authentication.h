@@ -6,6 +6,7 @@
 #define HASH_LENGTH SHA256_DIGEST_LENGTH
 
 #define SECRET_KEY "OP0GVA1ABbK04hC46NkEYsBAykjUNe0dvf+COdW/YGI="
+#define SECRET_KEY_LEN 32
 
 #define REDIS_HOST "localhost"
 #define REDIS_PORT 6379
@@ -15,18 +16,17 @@
 #define DB_PASS ""
 #define DB_NAME "auth"
 #define DB_PORT 3306
-// #define REDIS_PASS "bytingtigers"
 
-char *toHexString(unsigned char *data, size_t dataLength);
+char *hex_to_string(unsigned char *data, size_t dataLength);
 
-char *StringtoHex(const char *hex);
+char *string_to_hex(const char *hex);
 
-void createSaltedHash(const char *password, unsigned char *salt,
-                      unsigned char *hash);
+void create_salted_hash(const char *password, unsigned char *salt,
+                        unsigned char *hash);
 
 int signup(const char *username, const char *password);
 
-char *signin(const char *username, const char *password);
+const char *signin(const char *username, const char *password);
 
 char *generate_jwt(const char *username);
 

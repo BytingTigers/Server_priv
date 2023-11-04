@@ -2,14 +2,15 @@
 #define CHAT_H
 
 #include <arpa/inet.h>
+#include <hiredis/hiredis.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <signal.h>
-#include <hiredis/hiredis.h>
 
+#define CLIENT_TIMEOUT 30
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
 
@@ -38,9 +39,10 @@ typedef struct {
 
 void add_client(client_t *cl, chat_server_t *server);
 void remove_client(int uid, chat_server_t *server);
-void send_message(char *s, int uid, chat_server_t *server, redisContext *redis_context);
+void send_message(char *s, int uid, chat_server_t *server,
+                  redisContext *redis_context);
 void *handle_client(void *arg);
 void print_client_addr(struct sockaddr_in addr);
 void *start_chat_server(void *port);
 
-#endif //CHAT_H
+#endif // CHAT_H

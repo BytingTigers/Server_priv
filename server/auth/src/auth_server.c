@@ -18,6 +18,9 @@
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 1024
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 typedef struct {
     struct sockaddr_in address;
     int sockfd;
@@ -85,80 +88,88 @@ void *handle_client(void *arg) {
 
     // set mode sent via socket
     int recv_len = recv(cli->sockfd, &buffer, sizeof(buffer), 0);
+    DEBUG_PRINT("[Client: %d] Data received: %s\n", cli->uid, buffer);
+
     if (recv_len <= 0) {
 
-        if (errno == ETIMEDOUT) {
+        if (recv_len < 0 && errno == ETIMEDOUT) {
             DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
         }
 
         DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
-
-        close(cli->sockfd);
-        remove_client(cli->uid, server);
-        free(cli);
-        free(args);
-        pthread_detach(pthread_self());
-
-        return NULL;
+        goto close_conn;
     }
 
-    int mode = atoi(buffer);
-
-    char IDPW[20 + 30 + 2];
-    char ID[20] = {0}, PW[30] = {0};
     char *token;
+    char *rest = buffer;
+    int mode;
+    char id[USERNAME_MAX_LEN];
+    char pw[PASSWORD_MAX_LEN];
+    const char delim[] = ".";
 
-    recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
-    DEBUG_PRINT("[Client: %d] Data received: %s\n", cli->uid, IDPW);
-    if (recv_len <= 0) {
-
-        if (errno == ETIMEDOUT) {
-            DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
-        }
-
-        DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
-
-        close(cli->sockfd);
-        remove_client(cli->uid, server);
-        free(cli);
-        free(args);
-        pthread_detach(pthread_self());
-
-        return NULL;
-    }
-
-    IDPW[recv_len] = '\0';
-    token = strtok(IDPW, ".");
+    token = strtok_r(rest, delim, &rest);
     if (token != NULL) {
-        strncpy(ID, token, sizeof(ID) - 1);
-        token = strtok(NULL, ".");
-        if (token != NULL) {
-            strncpy(PW, token, sizeof(PW) - 1);
-        }
+        mode = atoi(token);
+    } else {
+        const char reply[] = "ERROR";
+        send(cli->sockfd, reply, sizeof(reply), NULL);
+        goto close_conn;
     }
 
-    DEBUG_PRINT("[Client: %d] ID: `%s`, PW: `%s`\n", cli->uid, ID, PW);
-    DEBUG_PRINT("[Client: %d] Mode: %d\n", cli->uid, mode);
+    token = strtok_r(NULL, delim, &rest);
+    if (token != NULL) {
+        strncpy(id, token, USERNAME_MAX_LEN - 1);
+        id[USERNAME_MAX_LEN - 1] = '\0';
+    } else {
+        const char reply[] = "ERROR";
+        send(cli->sockfd, reply, sizeof(reply), NULL);
+        goto close_conn;
+    }
 
-    pthread_mutex_lock(&server->clients_mutex);
+    token = strtok_r(NULL, delim, &rest);
+    if (token != NULL) {
+        strncpy(pw, token, PASSWORD_MAX_LEN - 1);
+        pw[PASSWORD_MAX_LEN - 1] = '\0';
+    } else {
+        const char reply[] = "ERROR";
+        send(cli->sockfd, reply, sizeof(reply), NULL);
+        goto close_conn;
+    }
 
-    if (mode == 1) { // mode 1 is signup
-        if (signup(ID, PW)) {
-            send(cli->sockfd, "ERROR", 6, 0);
+    DEBUG_PRINT("[Client: %d] ID: `%s`, pw: `%s`\n", cli->uid, id, pw);
+
+    switch (mode) {
+    case 1:
+
+        DEBUG_PRINT("[Client: %d] Mode: %d\n", cli->uid, mode);
+
+        pthread_mutex_lock(&server->clients_mutex);
+        if (signup(id, pw)) {
+            const char reply[] = "ERROR";
+            send(cli->sockfd, reply, sizeof(reply), NULL);
         } else {
-            send(cli->sockfd, "SUCCESS", 7, 0);
+            const char reply[] = "SUCCESS";
+            send(cli->sockfd, reply, sizeof(reply), NULL);
         }
-    } else if (mode == 2) { // mode 2 is signin
-        char *jwt;
-        jwt = signin(ID, PW);
+        pthread_mutex_unlock(&server->clients_mutex);
+
+        break;
+
+    case 2:
+
+        pthread_mutex_lock(&server->clients_mutex);
+        const char *jwt = signin(id, pw);
+        pthread_mutex_unlock(&server->clients_mutex);
         if (jwt == NULL) {
             send(cli->sockfd, "ERROR", 6, 0);
         } else {
             send(cli->sockfd, jwt, strlen(jwt) + 1, 0);
         }
+
+        break;
     }
 
-    pthread_mutex_unlock(&server->clients_mutex);
+close_conn:
 
     close(cli->sockfd);
     remove_client(cli->uid, server);
