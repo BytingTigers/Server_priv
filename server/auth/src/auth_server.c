@@ -218,7 +218,6 @@ int main(int argc, char** argv) {
 
         // Check if max clients is reached
         if((client_count + 1) == MAX_CLIENTS) {
-            ;
             close(connfd);
             continue;
         }
