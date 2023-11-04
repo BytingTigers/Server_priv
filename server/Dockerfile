@@ -38,9 +38,14 @@ RUN tar -xf openssl-1.1.1n.tar.gz
 WORKDIR /usr/local/src/openssl-1.1.1n
 RUN ./config && make && make install
 
+RUN apt-get -y upgrade
+
 # Install libjwt manually
+# WORKDIR /usr/local/src
+# RUN git clone https://github.com/benmcollins/libjwt.git --branch v1.12.0 --single-branch
+COPY ./lib/libjwt.tar.gz /usr/local/src/libjwt.tar.gz
 WORKDIR /usr/local/src
-RUN git clone https://github.com/benmcollins/libjwt.git --branch v1.12.0 --single-branch
+RUN tar -xf libjwt.tar.gz
 WORKDIR /usr/local/src/libjwt
 RUN autoreconf -i && \
     ./configure && \
