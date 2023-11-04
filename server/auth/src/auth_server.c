@@ -1,6 +1,9 @@
 #include "authentication.h"
 #include "debug_print.h"
 #include <arpa/inet.h>
+#include <asm-generic/errno.h>
+#include <asm-generic/socket.h>
+#include <errno.h>
 #include <hiredis/hiredis.h>
 #include <pthread.h>
 #include <signal.h>
@@ -81,13 +84,21 @@ void *handle_client(void *arg) {
 
     // set mode sent via socket
     int recv_len = recv(cli->sockfd, &buffer, sizeof(buffer), 0);
-
     if (recv_len <= 0) {
+
+        if (errno == ETIMEDOUT) {
+            DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
+        }
+
+        DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
+
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
         free(args);
         pthread_detach(pthread_self());
+
+        return NULL;
     }
 
     int mode = atoi(buffer);
@@ -98,7 +109,11 @@ void *handle_client(void *arg) {
 
     recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
     DEBUG_PRINT("[Client: %d] Data received: %s\n", cli->uid, IDPW);
-    if (recv_len == 0) {
+    if (recv_len <= 0) {
+
+        if (errno == ETIMEDOUT) {
+            DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
+        }
 
         DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
 
@@ -154,6 +169,10 @@ void *handle_client(void *arg) {
 }
 
 int main(int argc, char **argv) {
+
+    struct timeval timeout;
+    timeout.tv_sec = 30;
+    timeout.tv_usec = 0;
 
     if (argc != 2) {
         fprintf(stdout, "Usage: start [port]\n");
@@ -228,7 +247,11 @@ int main(int argc, char **argv) {
         socklen_t clilen = sizeof(cli_addr);
         connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
-        DEBUG_PRINT("The new connection accepted.\n");
+        if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+                       sizeof(timeout)) < 0) {
+            DEBUG_PRINT("setsockopt() failed");
+            break;
+        }
 
         // Check if max clients is reached
         if ((client_count + 1) == MAX_CLIENTS) {
