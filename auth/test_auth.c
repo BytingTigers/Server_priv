@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "authentication.h"
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -59,7 +58,7 @@ int main(){
         send(sockfd, &mode, sizeof(int), 0); // mode sent
         snprintf(IDPW,sizeof(IDPW),"%s.%s",id,password);
         send(sockfd,IDPW, sizeof(IDPW), 0);
-        char return_val[20]={0};
+        char return_val[20];
         int recv_len = recv(sockfd,return_val,sizeof(return_val),0);
         return_val[recv_len]='\0';
         printf("%s",return_val);
