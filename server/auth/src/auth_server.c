@@ -1,6 +1,9 @@
 #include "authentication.h"
 #include "debug_print.h"
 #include <arpa/inet.h>
+#include <asm-generic/errno.h>
+#include <asm-generic/socket.h>
+#include <errno.h>
 #include <hiredis/hiredis.h>
 #include <pthread.h>
 #include <signal.h>
@@ -9,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#define CLIENT_TIMEOUT 30
 #define USERNAME_MAX_LEN 10
 #define PASSWORD_MAX_LEN 20
 #define MAX_CLIENTS 10
@@ -81,13 +85,21 @@ void *handle_client(void *arg) {
 
     // set mode sent via socket
     int recv_len = recv(cli->sockfd, &buffer, sizeof(buffer), 0);
-
     if (recv_len <= 0) {
+
+        if (errno == ETIMEDOUT) {
+            DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
+        }
+
+        DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
+
         close(cli->sockfd);
         remove_client(cli->uid, server);
         free(cli);
         free(args);
         pthread_detach(pthread_self());
+
+        return NULL;
     }
 
     int mode = atoi(buffer);
@@ -98,7 +110,11 @@ void *handle_client(void *arg) {
 
     recv_len = recv(cli->sockfd, IDPW, sizeof(IDPW) - 1, 0);
     DEBUG_PRINT("[Client: %d] Data received: %s\n", cli->uid, IDPW);
-    if (recv_len == 0) {
+    if (recv_len <= 0) {
+
+        if (errno == ETIMEDOUT) {
+            DEBUG_PRINT("[Client: %d] Timeout.\n", cli->uid);
+        }
 
         DEBUG_PRINT("[Client: %d] Client disconnected.\n", cli->uid);
 
@@ -124,6 +140,8 @@ void *handle_client(void *arg) {
     DEBUG_PRINT("[Client: %d] ID: `%s`, PW: `%s`\n", cli->uid, ID, PW);
     DEBUG_PRINT("[Client: %d] Mode: %d\n", cli->uid, mode);
 
+    pthread_mutex_lock(&server->clients_mutex);
+
     if (mode == 1) { // mode 1 is signup
         if (signup(ID, PW)) {
             send(cli->sockfd, "ERROR", 6, 0);
@@ -140,6 +158,8 @@ void *handle_client(void *arg) {
         }
     }
 
+    pthread_mutex_unlock(&server->clients_mutex);
+
     close(cli->sockfd);
     remove_client(cli->uid, server);
     free(cli);
@@ -150,6 +170,10 @@ void *handle_client(void *arg) {
 }
 
 int main(int argc, char **argv) {
+
+    struct timeval timeout;
+    timeout.tv_sec = CLIENT_TIMEOUT;
+    timeout.tv_usec = 0;
 
     if (argc != 2) {
         fprintf(stdout, "Usage: start [port]\n");
@@ -224,7 +248,11 @@ int main(int argc, char **argv) {
         socklen_t clilen = sizeof(cli_addr);
         connfd = accept(listenfd, (struct sockaddr *)&cli_addr, &clilen);
 
-        DEBUG_PRINT("The new connection accepted.\n");
+        if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+                       sizeof(timeout)) < 0) {
+            DEBUG_PRINT("setsockopt() failed");
+            break;
+        }
 
         // Check if max clients is reached
         if ((client_count + 1) == MAX_CLIENTS) {
