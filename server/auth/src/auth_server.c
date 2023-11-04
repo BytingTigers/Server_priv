@@ -134,6 +134,7 @@ int main(int argc, char** argv) {
 
     if (argc != 2) {
         fprintf(stdout, "Usage: start [port]\n");
+        return -1;
     }
 
     int server_port = atoi(argv[1]);
