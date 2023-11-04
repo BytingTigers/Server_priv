@@ -144,7 +144,7 @@ char* signin(const char* id, const char* password) {
     }
 
     res = mysql_store_result(conn);
-    if (res == NULL){ // vuln?
+    if (mysql_num_rows(res)==0){ // vuln?
         return NULL;
     }
     
