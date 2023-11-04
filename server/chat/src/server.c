@@ -34,7 +34,7 @@ void *handle_main_client(void *arg){
     recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
     buffer[recv_len]='\0';
     redisCommand(redis_context, "SELECT 2");
-    
+
     redisReply *reply = redisCommand(redis_context, "GET %s", username);
     if(reply == NULL){
         send(cli->sockfd, "ERROR", 5, 0);
@@ -91,36 +91,36 @@ void *handle_main_client(void *arg){
                 }
             }
             break;
-        case 2: // list chatroom
-            char list_buffer[BUFF_LEN];
-            int offset = 0;
-            for(int i = 0; i < chatroom_count; i++) {
-                offset += snprintf(list_buffer + offset, BUFF_LEN - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
-            }
-            if(chatroom_count == 0) {
-                send(cli->sockfd, "No chatrooms available.", 23, 0);
-            } else {
-                send(cli->sockfd, list_buffer, strlen(list_buffer), 0);
-            }
-            break;
-        case 3: // join chatroom
-            char join_buffer[BUFF_LEN];
-            recv_len = recv(cli->sockfd, join_buffer, sizeof(join_buffer), 0);
-            if(recv_len <= 0) {
-                send(cli->sockfd, "Failed to receive chatroom info.", 31, 0);
-            } else {
-                join_buffer[recv_len] = '\0';
-                int chatroom_number = atoi(join_buffer) - 1;
-                if(chatroom_number < 0 || chatroom_number >= chatroom_count) {
-                    send(cli->sockfd, "Invalid chatroom number.", 24, 0);
-                } else {
-                    // Logic to join the chatroom would go here.
-                    // This could be sending back the chatroom details, connecting the client to the chatroom's socket, etc.
-                    snprintf(join_buffer, sizeof(join_buffer), "Connect to chatroom on port %d.", server_port[chatroom_number]);
-                    send(cli->sockfd, join_buffer, strlen(join_buffer), 0);
-                }
-            }
-            break;
+        // case 2: // list chatroom
+        //     char list_buffer[BUFF_LEN];
+        //     int offset = 0;
+        //     for(int i = 0; i < chatroom_count; i++) {
+        //         offset += snprintf(list_buffer + offset, BUFF_LEN - offset, "Chatroom %d: Port %d\n", i+1, server_port[i]);
+        //     }
+        //     if(chatroom_count == 0) {
+        //         send(cli->sockfd, "No chatrooms available.", 23, 0);
+        //     } else {
+        //         send(cli->sockfd, list_buffer, strlen(list_buffer), 0);
+        //     }
+        //     break;
+        // case 3: // join chatroom
+        //     char join_buffer[BUFF_LEN];
+        //     recv_len = recv(cli->sockfd, join_buffer, sizeof(join_buffer), 0);
+        //     if(recv_len <= 0) {
+        //         send(cli->sockfd, "Failed to receive chatroom info.", 31, 0);
+        //     } else {
+        //         join_buffer[recv_len] = '\0';
+        //         int chatroom_number = atoi(join_buffer) - 1;
+        //         if(chatroom_number < 0 || chatroom_number >= chatroom_count) {
+        //             send(cli->sockfd, "Invalid chatroom number.", 24, 0);
+        //         } else {
+        //             // Logic to join the chatroom would go here.
+        //             // This could be sending back the chatroom details, connecting the client to the chatroom's socket, etc.
+        //             snprintf(join_buffer, sizeof(join_buffer), "Connect to chatroom on port %d.", server_port[chatroom_number]);
+        //             send(cli->sockfd, join_buffer, strlen(join_buffer), 0);
+        //         }
+        //     }
+        //     break;
 
     }
     close(cli->sockfd);
