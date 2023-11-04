@@ -178,7 +178,7 @@ char* signin(const char* id, const char* password){
         free(hashString);
         mysql_close(conn);
 
-        exit(1);
+        return NULL;
     }
     
     // redis authentication
@@ -193,7 +193,7 @@ char* signin(const char* id, const char* password){
         free(hash);
         free(hashString);
         mysql_close(conn);
-        exit(1);
+        return NULL;
     }
 
     if (reply->type == REDIS_REPLY_ERROR) {
@@ -204,36 +204,54 @@ char* signin(const char* id, const char* password){
         free(hash);
         free(hashString);
         mysql_close(conn);
-        exit(1);
+        return NULL;
     }
 
     freeReplyObject(reply);
 
     // change database to JWT(2)
     redisCommand(redis_context, "SELECT 2");
+    char *jwt = NULL;
 
-    char *generated_token = generate_jwt(id);
-    
-    reply = redisCommand(redis_context, "LPUSH jwt:%s %s", generated_token, id);
-    if (reply == NULL) {
-        printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
+    // check if jwt exists
+    reply = redisCommand(redis_context, "EXISTS %s", id);
+    if(reply->integer){   
+        freeReplyObject(reply);
+
+        reply = redisCommand(redis_context, "GET %s", id);    
+        jwt = strdup(reply->str);
+
+        freeReplyObject(reply);
         redisFree(redis_context);
         free(salt);
         free(hash);
         free(hashString);
         mysql_close(conn);
-        exit(1);
-    } else {
-        freeReplyObject(reply);
+
+        return jwt;
+    }else{
+        jwt = strdup(generate_jwt(id));
+        reply = redisCommand(redis_context, "SETEX %s %d %s", id, 3600, jwt);
+        if (reply == NULL) {
+            printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
+            redisFree(redis_context);
+            free(salt);
+            free(hash);
+            free(hashString);
+            mysql_close(conn);
+            return NULL;
+
+        } else {
+            freeReplyObject(reply);
+        }
+        redisFree(redis_context);
+        free(salt);
+        free(hash);
+        free(hashString);
+        mysql_close(conn);
+
+        return jwt;
     }
-
-    redisFree(redis_context);
-    free(salt);
-    free(hash);
-    free(hashString);
-    mysql_close(conn);
-
-    return generated_token;
 }
 
 char* generate_jwt(const char* username) {
