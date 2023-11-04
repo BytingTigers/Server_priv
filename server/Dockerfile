@@ -8,11 +8,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build tools
 RUN apt-get update && apt-get install -y \
-	gcc \
-	gcc-multilib \
-	libc6 \
-	libc6-dev \
-	net-tools \
+    gcc \
+    gcc-multilib \
+    libc6 \
+    libc6-dev \
+    net-tools \
     git \
     autoconf \
     automake \
@@ -20,16 +20,16 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     make \
     checkinstall \
-	build-essential \
-	git \
-	zlib1g-dev \
-	wget
+    build-essential \
+    git \
+    zlib1g-dev \
+    wget
 
 # Install libraries
 RUN apt-get install -y \
-	libhiredis-dev \
-	libmysqlclient-dev \
-	libjansson-dev
+    libhiredis-dev \
+    libmysqlclient-dev \
+    libjansson-dev
 
 # Install updated OpenSSL manually
 WORKDIR /usr/local/src
@@ -57,7 +57,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 FROM base as build-auth
 
-COPY ./auth	/auth
+COPY ./auth /auth
 WORKDIR /auth
 RUN make clean
 RUN make CFLAGS='-z execstack -fno-stack-protector -z norelro -g -O0'
@@ -93,7 +93,7 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 # Initialize the MySQL data directory
 COPY setup_mysql.sh /setup_mysql.sh
 RUN service mysql start && \
-	sleep 5 && \
+    sleep 5 && \
     sh /setup_mysql.sh && \
     service mysql stop
 
