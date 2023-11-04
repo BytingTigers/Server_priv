@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#define CLIENT_TIMEOUT 30
 #define USERNAME_MAX_LEN 10
 #define PASSWORD_MAX_LEN 20
 #define MAX_CLIENTS 10
@@ -171,7 +172,7 @@ void *handle_client(void *arg) {
 int main(int argc, char **argv) {
 
     struct timeval timeout;
-    timeout.tv_sec = 30;
+    timeout.tv_sec = CLIENT_TIMEOUT;
     timeout.tv_usec = 0;
 
     if (argc != 2) {
