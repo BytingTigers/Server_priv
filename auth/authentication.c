@@ -116,7 +116,7 @@ int signup(const char* username, const char* password){
     free(hex_hash);
     mysql_close(conn);
     mysql_free_result(res);
-    return 1;
+    return 0;
 }
 
 char* signin(const char* id, const char* password){
