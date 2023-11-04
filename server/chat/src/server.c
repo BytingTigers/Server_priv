@@ -83,6 +83,15 @@ void *handle_main_client(void *arg){
                     memset(new_chatroom->clients, 0, sizeof(new_chatroom->clients));
                     new_chatroom->server_port = server_port[chatroom_count];
 
+                    // set title
+                    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+                    buffer[recv_len] = '\0';
+                    strncpy(new_chatroom->title, buffer, sizeof(buffer));
+                    // set password
+                    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+                    buffer[recv_len] = '\0';
+                    strncpy(new_chatroom->password, buffer, sizeof(buffer));
+
                     pthread_t chatroom_thread;
                     if(pthread_create(&chatroom_thread, NULL, &start_chat_server, (void*)&server_port[chatroom_count]) != 0) {
                         send(cli->sockfd, "Failed to create chatroom. Try again later.", 42, 0);
