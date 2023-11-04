@@ -1,24 +1,37 @@
-CC=gcc
-CFLAGS=-g -Wall 
-LDFLAGS=-lpthread -lhiredis
-OBJS=server.o chat.o
-TARGET=server
+# Compiler and Linker
+CC := gcc
+LD := gcc
 
-all: $(TARGET) clean_object
+# Directories
+SRC_DIR := src
+BUILD_DIR := build
 
-$(TARGET): $(OBJS)
-	$(CC) -o $@ $(OBJS) $(LDFLAGS)
+# Flags
+CFLAGS := -Wall -Wextra -I$(SRC_DIR)
+LDFLAGS := -pthread
+LIBS := -lhiredis
 
-server.o: test_chat_server.c chat.h 
-	$(CC) $(CFLAGS) -c test_chat_server.c -o server.o
+# Files
+SRCS := $(wildcard $(SRC_DIR)/*.c)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-chat.o: chat.c chat.h
-	$(CC) $(CFLAGS) -c chat.c
+# Targets
+all: server
+
+server: $(OBJS)
+	$(LD) $^ -o $@ $(LDFLAGS) $(LIBS)
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.PHONY: clean docker docker-run
 
 clean:
-	rm -f *.o
-	rm -f $(TARGET) $(CLIENT_TARGET)
+	rm -rf $(BUILD_DIR)/* server
 
-clean_object:
-	rm -f *.o
-.PHONY: server clean clean_object
+docker:
+	docker build -t server .
+
+docker-run:
+	docker run -p 5000:5000 -it server
