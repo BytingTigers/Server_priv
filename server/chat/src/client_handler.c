@@ -241,8 +241,13 @@ void *handle_client(void *arg) {
                 DEBUG_PRINT("Cannot send a message before joining.\n");
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
-                    break;
                 }
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
+                return NULL;
             }
 
             token = strtok_r(NULL, delim, &rest);
@@ -251,6 +256,11 @@ void *handle_client(void *arg) {
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
                 }
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
                 return NULL;
             }
 
