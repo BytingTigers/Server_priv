@@ -142,6 +142,7 @@ int join_room(room_t *room, const char *password, client_t *client) {
         if (room->clients[i] == NULL) {
             room->clients[i] = client;
             room->client_count++;
+            DEBUG_PRINT("room %s[%d]: %s",room->id, i, client->username);
             return 1;
         }
     }
