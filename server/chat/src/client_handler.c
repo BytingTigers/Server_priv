@@ -146,6 +146,9 @@ void *handle_client(void *arg) {
             return NULL;
         }
         buffer[recv_len]='\0';
+        while (recv_len > 0 && (buffer[recv_len - 1] == '\n' || buffer[recv_len - 1] == '\r')) {
+            buffer[--recv_len] = '\0';
+        }
         sanitize(buffer, strlen(buffer));
 
         DEBUG_PRINT("received: %s\n", buffer);
