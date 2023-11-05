@@ -214,6 +214,13 @@ void *handle_client(void *arg) {
 
             snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
 
+            // load messages
+            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1");
+            DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
+            for(int i=0;i<reply->elements;i++){
+                new_message(redis_context, room, reply->element[i]->str);
+            }
+            
             if (new_message(redis_context, room, buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
