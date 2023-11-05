@@ -289,9 +289,8 @@ const char *signin(const char *id, const char *password) {
     // change database to JWT(2)
     redisCommand(redis_context, "SELECT 2");
     char *jwt = NULL;
-    char *generated_token = generate_jwt(id);
 
-    reply = redisCommand(redis_context, "LPUSH jwt:%s %s", generated_token, id);
+    reply = redisCommand(redis_context, "GET %s", id);
     if (reply == NULL) {
         printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
         redisFree(redis_context);
@@ -300,9 +299,13 @@ const char *signin(const char *id, const char *password) {
         free(hash_string);
         mysql_close(conn);
         return jwt;
-    } else {
+    }
+    if(reply->str != NULL){ // JWT exists
+        jwt = reply->str;
+    }else{ // JWT doesn't exist
         jwt = strdup(generate_jwt(id));
         reply = redisCommand(redis_context, "SETEX %s %d %s", id, 3600, jwt);
+
         if (reply == NULL) {
             printf("Failed to save jwt to Redis: %s\n", redis_context->errstr);
             redisFree(redis_context);
@@ -314,13 +317,13 @@ const char *signin(const char *id, const char *password) {
         } else {
             freeReplyObject(reply);
         }
+    }
         redisFree(redis_context);
         free(salt);
         free(hash);
         free(hash_string);
         mysql_close(conn);
         return jwt;
-    }
 }
 
 char *generate_jwt(const char *username) {
