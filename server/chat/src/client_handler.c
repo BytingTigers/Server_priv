@@ -188,7 +188,7 @@ void *handle_client(void *arg) {
                 }
                 return NULL;
             }
-            strncpy(room_id, token, strlen(room_id));
+            strncpy(room_id, token, MAX_ROOM_ID_LEN);
 
             token = strtok_r(NULL, delim, &rest);
             if (token == NULL) {
@@ -216,7 +216,7 @@ void *handle_client(void *arg) {
             snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
 
             // load messages
-            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1");
+            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1",room_id);
             DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
             for(int i=0;i<reply->elements;i++){
                 new_message(redis_context, room, reply->element[i]->str);
