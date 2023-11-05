@@ -43,6 +43,7 @@ room_t **_get_rooms(redisContext *redis_context) {
 
             if (reply->type == REDIS_REPLY_STRING) {
                 cur->password = strdup(reply->str);
+                DEBUG_PRINT("Room %s: Password: %s",cur->id, cur->password);
             } else {
                 DEBUG_PRINT("Room %s does not have a password set\n", cur->id);
                 cur->password = "";
