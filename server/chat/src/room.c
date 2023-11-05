@@ -93,20 +93,35 @@ room_t *create_room(redisContext *redis_context, const char *id,
 
     room_t **rooms = _get_rooms(redis_context);
 
-    room_t *cur = rooms[0];
-    while (cur++) {
+    int create_room_index = 0;
+    for (int i = 0; i < MAX_ROOMS_PER_SERVER; i++) {
+        if (rooms[i] == NULL) {
+            create_room_index = i;
+            break;
+        }
     }
 
-    cur = malloc(sizeof(room_t));
+    if (create_room_index == -1) {
+        DEBUG_PRINT("No free space in rooms\n");
+        return NULL;
+    }
 
-    cur->client_count = 0;
-    cur->id = (char *)id;
-    cur->password = (char *)password;
-    for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
-        cur->clients[i] = NULL;
+    room_t *new_room = malloc(sizeof(room_t));
+
+    new_room->client_count = 0;
+    new_room->id = strdup(id);
+    if(password){
+        new_room->password = strdup(password);
+    }else{
+        new_room->password = NULL;
     }
     
-    return cur;
+    for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
+        new_room->clients[i] = NULL;
+    }
+    
+    rooms[create_room_index]=new_room;
+    return new_room;
 }
 
 int join_room(room_t *room, const char *password, client_t *client) {
