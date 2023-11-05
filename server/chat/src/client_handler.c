@@ -353,7 +353,9 @@ void *handle_client(void *arg) {
                 }
                 free(room_id);
             }
-            send_buffer[current_len] = '\0';
+
+            // the last delimiter is not needed
+            send_buffer[current_len - 1] = '\0';
             DEBUG_PRINT("CHAT LIST: %s\n", send_buffer);
             send(cli->sockfd, send_buffer, strlen(send_buffer), 0);
         }
