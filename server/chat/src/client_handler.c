@@ -221,7 +221,7 @@ void *handle_client(void *arg) {
             for(int i=0;i<reply->elements;i++){
                 send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
             }
-            
+            snprintf(buffer, BUFFER_SIZE, "%s: %s",username, buffer);
             if (new_message(redis_context, room, buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
