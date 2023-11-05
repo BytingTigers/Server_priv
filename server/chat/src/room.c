@@ -33,6 +33,7 @@ room_t **_get_rooms(redisContext *redis_context) {
         }
 
         for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
+            DEBUG_PRINT("%d ITER",i);
             room_t *cur = rooms[i];
             reply = redisCommand(redis_context, "GET room_password:%s", cur->id);
 
