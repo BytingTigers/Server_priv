@@ -253,7 +253,9 @@ void *handle_client(void *arg) {
                 }
                 return NULL;
             }
+
             strncpy(buffer, token, strlen(buffer));
+            DEBUG_PRINT("new MESSAGE arrived: %s\n",buffer);
             new_message(redis_context, room, buffer);
             break;
 
