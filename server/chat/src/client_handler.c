@@ -1,4 +1,5 @@
 #include "client_handler.h"
+#include "room.h"
 #include <unistd.h>
 
 /* Remove non-ASCII characters and ASCII control characters from the received
@@ -40,6 +41,8 @@ void *handle_client(void *arg) {
 
     char room_id[MAX_ROOM_ID_LEN];
     char password[MAX_PASSWORD_LEN];
+
+    char *chat_history;
 
     const char error_msg[] = "ERROR";
 
@@ -103,7 +106,7 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
-    // Username
+    // jwt_string
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -213,19 +216,19 @@ void *handle_client(void *arg) {
             join_room(room, password, cli);
 
             snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
-
-            // load messages
-            redisReply *reply =
-                redisCommand(redis_context, "LRANGE msgs:%s -10 -1", room_id);
-            DEBUG_PRINT("%ld messages loaded from redis.\n", reply->elements);
-            for (int i = 0; i < reply->elements; i++) {
-                send(cli->sockfd, reply->element[i]->str,
-                     strlen(reply->element[i]->str), 0);
-            }
-
             if (new_message(redis_context, room, buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
+
+            if (write(cli->sockfd, buffer, strlen(buffer)) < 0) {
+                DEBUG_PRINT("write() failed\n");
+            }
+
+            chat_history = get_messages(redis_context, room);
+            if (write(cli->sockfd, buffer, strlen(buffer)) < 0) {
+                DEBUG_PRINT("write() failed\n");
+            }
+            free(chat_history);
 
             break;
 
