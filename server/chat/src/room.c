@@ -13,24 +13,23 @@ room_t **_get_rooms(redisContext *redis_context) {
     redisReply *reply;
 
     if (rooms == NULL) {
-
         rooms = calloc(sizeof(room_t *), MAX_ROOMS_PER_SERVER);
-        memset(rooms, 0, sizeof(room_t *) * MAX_ROOMS_PER_SERVER);
 
         reply = redisCommand(redis_context, "SMEMBERS rooms");
-
         if (!reply) {
             DEBUG_PRINT("redisCommand failed\n");
+            free(rooms);
             return NULL;
         }
     
         for (int i = 0; i < reply->elements; i++) {
             rooms[i] = malloc(sizeof(room_t));
-            rooms[i]->id = reply->element[i]->str;
+            rooms[i]->id = strdup(reply->element[i]->str);
             memset(rooms[i]->clients, 0,
                    sizeof(client_t *) * MAX_CLIENTS_PER_ROOM);
             rooms[i]->client_count = 0;
         }
+        freeReplyObject(reply); 
 
         for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
             room_t *cur = rooms[i];
@@ -46,7 +45,7 @@ room_t **_get_rooms(redisContext *redis_context) {
                 DEBUG_PRINT("Room %s: Password: %s",cur->id, cur->password);
             } else {
                 DEBUG_PRINT("Room %s does not have a password set\n", cur->id);
-                cur->password = "";
+                cur->password = NULL;
             }
         }
     }
