@@ -70,6 +70,7 @@ room_t *get_room(redisContext *redis_context, const char *id) {
 room_t *create_room(redisContext *redis_context, const char *id,
                     const char *password) {
 
+    DEBUG_PRINT("create_room(%s, %s) called\n",id, password);
     redisReply *reply = redisCommand(redis_context, "SADD rooms %s", id);
 
     if (!reply) {

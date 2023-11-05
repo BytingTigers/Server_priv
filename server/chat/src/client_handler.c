@@ -145,7 +145,7 @@ void *handle_client(void *arg) {
 
             return NULL;
         }
-
+        buffer[recv_len]='\0';
         sanitize(buffer, strlen(buffer));
 
         DEBUG_PRINT("received: %s\n", buffer);
