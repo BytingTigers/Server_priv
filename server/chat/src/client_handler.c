@@ -171,7 +171,9 @@ void *handle_client(void *arg) {
             request = MAKE;
         } else if (strncmp("quit", token, 4) == 0) {
             request = QUIT;
-        } else {
+        } else if (strncmp("list", token, 4) == 0) {
+            request = LIST;
+        } else{
             continue;
         }
 
@@ -312,6 +314,27 @@ void *handle_client(void *arg) {
             free(args);
             pthread_detach(pthread_self());
             return NULL;
+
+        case LIST:
+
+            DEBUG_PRINT("LIST\n");
+
+            redisReply *reply = redisCommand(redis_context, "SMEMBERS rooms");
+            memset(buffer, 0, sizeof(buffer));
+            int count = reply -> elements;
+            int current_len = 0;
+            for (int i = 0; i < count; i++) {
+                char* room_id = reply -> element[i];
+                int len = strlen(room_id);
+                if (current_len + len < BUFF_LEN) {
+                    strcat(buffer, room_id);
+                    strcat(buffer,".");
+                    current_len += len + 1;
+                }
+            }
+            buffer[current_len]='\0';
+            DEBUG_PRINT("CHAT LIST: %s\n",buffer);
+            send(cli->sockfd, buffer, strlen(buffer), 0);
         }
     }
 
