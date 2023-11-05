@@ -1,4 +1,5 @@
 #include "client_handler.h"
+#include "room.h"
 #include <unistd.h>
 
 /* Remove non-ASCII characters and ASCII control characters from the received
@@ -29,7 +30,7 @@ static char *sanitize(const char *str, size_t len) {
 }
 
 void *handle_client(void *arg) {
-    char buffer[BUFF_LEN];
+    char recv_buffer[BUFF_LEN], send_buffer[BUFF_LEN];
     int leave_flag = 0;
     int recv_len;
 
@@ -40,6 +41,8 @@ void *handle_client(void *arg) {
 
     char room_id[MAX_ROOM_ID_LEN];
     char password[MAX_PASSWORD_LEN];
+
+    char *chat_history;
 
     const char error_msg[] = "ERROR";
 
@@ -55,7 +58,7 @@ void *handle_client(void *arg) {
     // ######################
     // # Token verification #
     // ######################
-    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+    recv_len = recv(cli->sockfd, recv_buffer, sizeof(recv_buffer), 0);
     if (recv_len <= 0) {
 
         DEBUG_PRINT("The client disconnected\n");
@@ -69,12 +72,11 @@ void *handle_client(void *arg) {
         return NULL;
     }
 
-    sanitize(buffer, strlen(buffer));
+    sanitize(recv_buffer, strlen(recv_buffer));
 
-    DEBUG_PRINT("received: %s\n", buffer);
-
+    DEBUG_PRINT("received: %s\n", recv_buffer);
     // `auth`
-    rest = buffer;
+    rest = recv_buffer;
     token = strtok_r(rest, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -103,8 +105,12 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
+<<<<<<< HEAD
+    // jwt_string
+=======
 
     // JWT
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -133,7 +139,7 @@ void *handle_client(void *arg) {
     while (1) {
 
         // set username sent via socket
-        recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+        recv_len = recv(cli->sockfd, recv_buffer, sizeof(recv_buffer), 0);
 
         if (recv_len <= 0) {
 
@@ -147,12 +153,12 @@ void *handle_client(void *arg) {
 
             return NULL;
         }
-        buffer[recv_len]='\0';
-        sanitize(buffer, strlen(buffer));
+        recv_buffer[recv_len] = '\0';
+        sanitize(recv_buffer, strlen(recv_buffer));
 
-        DEBUG_PRINT("received: %s\n", buffer);
+        DEBUG_PRINT("received: %s\n", recv_buffer);
 
-        rest = buffer;
+        rest = recv_buffer;
         token = strtok_r(rest, delim, &rest);
         if (token == NULL) {
             DEBUG_PRINT("Invalid format.\n");
@@ -231,6 +237,11 @@ void *handle_client(void *arg) {
 
             join_room(room, password, cli);
 
+<<<<<<< HEAD
+            snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
+                     cli->username);
+            if (new_message(redis_context, room, send_buffer) == 1) {
+=======
             snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
 
             // load messages
@@ -240,8 +251,15 @@ void *handle_client(void *arg) {
                 send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
             }
             if (new_message(redis_context, room, buffer) == 1) {
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
                 DEBUG_PRINT("new_message() failed\n");
             }
+
+            chat_history = get_messages(redis_context, room);
+            if (write(cli->sockfd, chat_history, strlen(chat_history)) < 0) {
+                DEBUG_PRINT("write() failed\n");
+            }
+            free(chat_history);
 
             break;
 
@@ -286,10 +304,18 @@ void *handle_client(void *arg) {
                 return NULL;
             }
 
+<<<<<<< HEAD
+            snprintf(send_buffer, sizeof(send_buffer), "[%s] %s\n",
+                     cli->username, token);
+            send_buffer[sizeof(send_buffer) - 1] = '\0';
+            DEBUG_PRINT("new MESSAGE arrived: %s", send_buffer);
+            new_message(redis_context, room, send_buffer);
+=======
             snprintf(buffer, BUFFER_SIZE, "%s: %s",username, token);
             buffer[sizeof(buffer) - 1] ='\0';
             DEBUG_PRINT("new MESSAGE arrived: %s\n",buffer);
             new_message(redis_context, room, buffer);
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
             break;
 
         case MAKE:
