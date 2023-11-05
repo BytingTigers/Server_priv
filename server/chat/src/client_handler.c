@@ -104,7 +104,7 @@ void *handle_client(void *arg) {
     strncpy(username, token, MAX_USERNAME_LEN);
 
 
-    // Username
+    // JWT
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -113,8 +113,11 @@ void *handle_client(void *arg) {
         }
         return NULL;
     }
-    strncpy(jwt_string, token, BUFF_LEN);
+    strncpy(jwt_string, token, strlen(token));
     jwt_string[strlen(jwt_string) - 1]= '\0'; // remove last trail char
+
+    DEBUG_PRINT("JWT - token: %s\n",token);
+    DEBUG_PRINT("JWT - jwt_string: %s\n",token);
 
     if (verify_jwt(jwt_string, username) == 0) {
         DEBUG_PRINT("Invalid jwt.\n");
