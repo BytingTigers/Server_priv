@@ -215,9 +215,9 @@ void *handle_client(void *arg) {
 
             join_room(room, password, cli);
 
-            snprintf(buffer, BUFF_LEN, "%s joined the room!", cli->username);
+            snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
 
-            if (new_message(redis_context, room, buffer) == 0) {
+            if (new_message(redis_context, room, buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
 
