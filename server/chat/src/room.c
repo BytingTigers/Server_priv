@@ -60,6 +60,8 @@ room_t *get_room(redisContext *redis_context, const char *id) {
 
     for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
         room_t *cur = rooms[i];
+        DEBUG_PRINT("COMPARE ROOM NAME %s\n",id);
+        DEBUG_PRINT("COMPARE WITH ROOM NAME %s\n",cur->id);
         if (strcmp(cur->id, id) == 0) {
             return cur;
         }
