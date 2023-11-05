@@ -103,7 +103,6 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
-
     // Username
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
@@ -146,7 +145,7 @@ void *handle_client(void *arg) {
 
             return NULL;
         }
-        buffer[recv_len]='\0';
+        buffer[recv_len] = '\0';
         sanitize(buffer, strlen(buffer));
 
         DEBUG_PRINT("received: %s\n", buffer);
@@ -216,12 +215,14 @@ void *handle_client(void *arg) {
             snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
 
             // load messages
-            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1",room_id);
-            DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
-            for(int i=0;i<reply->elements;i++){
-                send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
+            redisReply *reply =
+                redisCommand(redis_context, "LRANGE msgs:%s -10 -1", room_id);
+            DEBUG_PRINT("%ld messages loaded from redis.\n", reply->elements);
+            for (int i = 0; i < reply->elements; i++) {
+                send(cli->sockfd, reply->element[i]->str,
+                     strlen(reply->element[i]->str), 0);
             }
-            
+
             if (new_message(redis_context, room, buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
@@ -270,8 +271,8 @@ void *handle_client(void *arg) {
             }
 
             strncpy(buffer, token, sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] ='\0';
-            DEBUG_PRINT("new MESSAGE arrived: %s\n",buffer);
+            buffer[sizeof(buffer) - 1] = '\0';
+            DEBUG_PRINT("new MESSAGE arrived: %s\n", buffer);
             new_message(redis_context, room, buffer);
             break;
 
