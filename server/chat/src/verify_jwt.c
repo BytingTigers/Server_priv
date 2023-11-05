@@ -9,8 +9,8 @@ int verify_jwt(const char *jwt_string, const char *username) {
     jwt_t *jwt = NULL;
 
     char *key = strdup(SECRET_KEY);
-    int ret = jwt_decode(&jwt, jwt_string, key, strlen(key));
-    // int ret = jwt_decode(&jwt, jwt_string, NULL, 0);
+    // int ret = jwt_decode(&jwt, jwt_string, key, strlen(key));
+    int ret = jwt_decode(&jwt, jwt_string, NULL, 0);
 
     if (ret != 0) {
         fprintf(stderr, "Invalid JWT.\n");
