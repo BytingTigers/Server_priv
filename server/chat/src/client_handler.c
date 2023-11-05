@@ -29,7 +29,6 @@ static char *sanitize(const char *str, size_t len) {
 }
 
 void *handle_client(void *arg) {
-
     char buffer[BUFF_LEN];
     int leave_flag = 0;
     int recv_len;
@@ -104,6 +103,7 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
+
     // Username
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
@@ -122,7 +122,8 @@ void *handle_client(void *arg) {
         }
         return NULL;
     }
-    strncpy(cli->username, username, strlen(cli->username));
+    strncpy(cli->username, username, MAX_USERNAME_LEN - 1);
+    cli->username[MAX_USERNAME_LEN - 1] = '\0';
 
     // ##################
     // # Message handle #
