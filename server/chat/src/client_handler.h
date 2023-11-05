@@ -15,7 +15,7 @@ typedef struct {
     redisContext *redis_context;
 } thread_args_t;
 
-typedef enum { SEND, JOIN, LEAVE, MAKE, QUIT, LIST} request_t;
+typedef enum { SEND, JOIN, LEAVE, MAKE, QUIT, LISTROOM} request_t;
 
 void *handle_client(void *arg);
 

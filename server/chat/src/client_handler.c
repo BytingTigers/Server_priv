@@ -172,7 +172,7 @@ void *handle_client(void *arg) {
         } else if (strncmp("quit", token, 4) == 0) {
             request = QUIT;
         } else if (strncmp("list", token, 4) == 0) {
-            request = LIST;
+            request = LISTROOM;
         } else{
             continue;
         }
@@ -315,7 +315,7 @@ void *handle_client(void *arg) {
             pthread_detach(pthread_self());
             return NULL;
 
-        case LIST:
+        case LISTROOM:
 
             DEBUG_PRINT("LIST\n");
 
