@@ -47,8 +47,6 @@ room_t **_get_rooms(redisContext *redis_context) {
                 DEBUG_PRINT("Room %s does not have a password set\n", cur->id);
                 cur->password = "";
             }
-
-            freeReplyObject(reply);
         }
     }
 
@@ -106,7 +104,7 @@ room_t *create_room(redisContext *redis_context, const char *id,
     for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
         cur->clients[i] = NULL;
     }
-
+    
     return cur;
 }
 
