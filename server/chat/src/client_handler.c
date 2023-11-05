@@ -30,7 +30,7 @@ static char *sanitize(const char *str, size_t len) {
 }
 
 void *handle_client(void *arg) {
-    char buffer[BUFF_LEN];
+    char recv_buffer[BUFF_LEN], send_buffer[BUFF_LEN];
     int leave_flag = 0;
     int recv_len;
 
@@ -58,7 +58,7 @@ void *handle_client(void *arg) {
     // ######################
     // # Token verification #
     // ######################
-    recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+    recv_len = recv(cli->sockfd, recv_buffer, sizeof(recv_buffer), 0);
     if (recv_len <= 0) {
 
         DEBUG_PRINT("The client disconnected\n");
@@ -72,12 +72,11 @@ void *handle_client(void *arg) {
         return NULL;
     }
 
-    sanitize(buffer, strlen(buffer));
+    sanitize(recv_buffer, strlen(recv_buffer));
 
-    DEBUG_PRINT("received: %s\n", buffer);
-
+    DEBUG_PRINT("received: %s\n", recv_buffer);
     // `auth`
-    rest = buffer;
+    rest = recv_buffer;
     token = strtok_r(rest, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -134,7 +133,7 @@ void *handle_client(void *arg) {
     while (1) {
 
         // set username sent via socket
-        recv_len = recv(cli->sockfd, buffer, sizeof(buffer), 0);
+        recv_len = recv(cli->sockfd, recv_buffer, sizeof(recv_buffer), 0);
 
         if (recv_len <= 0) {
 
@@ -148,12 +147,12 @@ void *handle_client(void *arg) {
 
             return NULL;
         }
-        buffer[recv_len] = '\0';
-        sanitize(buffer, strlen(buffer));
+        recv_buffer[recv_len] = '\0';
+        sanitize(recv_buffer, strlen(recv_buffer));
 
-        DEBUG_PRINT("received: %s\n", buffer);
+        DEBUG_PRINT("received: %s\n", recv_buffer);
 
-        rest = buffer;
+        rest = recv_buffer;
         token = strtok_r(rest, delim, &rest);
         if (token == NULL) {
             DEBUG_PRINT("Invalid format.\n");
@@ -215,8 +214,9 @@ void *handle_client(void *arg) {
 
             join_room(room, password, cli);
 
-            snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
-            if (new_message(redis_context, room, buffer) == 1) {
+            snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
+                     cli->username);
+            if (new_message(redis_context, room, send_buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
 
@@ -269,10 +269,11 @@ void *handle_client(void *arg) {
                 return NULL;
             }
 
-            strncpy(buffer, token, sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] = '\0';
-            DEBUG_PRINT("new MESSAGE arrived: %s\n", buffer);
-            new_message(redis_context, room, buffer);
+            snprintf(send_buffer, sizeof(send_buffer), "[%s] %s\n",
+                     cli->username, token);
+            send_buffer[sizeof(send_buffer) - 1] = '\0';
+            DEBUG_PRINT("new MESSAGE arrived: %s", send_buffer);
+            new_message(redis_context, room, send_buffer);
             break;
 
         case MAKE:
