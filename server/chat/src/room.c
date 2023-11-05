@@ -204,7 +204,7 @@ char *get_messages(redisContext *redis_context, const room_t *room) {
     }
 
     redisReply *reply =
-        redisCommand(redis_context, "LRANGE msgs:%s 0 100", room->id);
+        redisCommand(redis_context, "LRANGE msgs:%s 0 -1", room->id);
 
     if (!reply) {
         DEBUG_PRINT("redisCommand failed\n");

@@ -220,12 +220,8 @@ void *handle_client(void *arg) {
                 DEBUG_PRINT("new_message() failed\n");
             }
 
-            if (write(cli->sockfd, buffer, strlen(buffer)) < 0) {
-                DEBUG_PRINT("write() failed\n");
-            }
-
             chat_history = get_messages(redis_context, room);
-            if (write(cli->sockfd, buffer, strlen(buffer)) < 0) {
+            if (write(cli->sockfd, chat_history, strlen(chat_history)) < 0) {
                 DEBUG_PRINT("write() failed\n");
             }
             free(chat_history);
