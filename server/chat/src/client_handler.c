@@ -219,7 +219,7 @@ void *handle_client(void *arg) {
             redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1",room_id);
             DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
             for(int i=0;i<reply->elements;i++){
-                new_message(redis_context, room, reply->element[i]->str);
+                send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
             }
             
             if (new_message(redis_context, room, buffer) == 1) {
