@@ -105,7 +105,12 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
+<<<<<<< HEAD
     // jwt_string
+=======
+
+    // JWT
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -114,7 +119,8 @@ void *handle_client(void *arg) {
         }
         return NULL;
     }
-    strncpy(jwt_string, token, BUFF_LEN);
+    strncpy(jwt_string, token, strlen(token));
+    jwt_string[strcspn(jwt_string, "\n")] = '\0'; // remove last trail char
 
     if (verify_jwt(jwt_string, username) == 0) {
         DEBUG_PRINT("Invalid jwt.\n");
@@ -159,6 +165,11 @@ void *handle_client(void *arg) {
             if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                 DEBUG_PRINT("send() failed");
             }
+            close(cli->sockfd);
+            remove_client(cli->uid, server);
+            free(cli);
+            free(args);
+            pthread_detach(pthread_self());
             return NULL;
         }
 
@@ -172,7 +183,9 @@ void *handle_client(void *arg) {
             request = MAKE;
         } else if (strncmp("quit", token, 4) == 0) {
             request = QUIT;
-        } else {
+        } else if (strncmp("list", token, 4) == 0) {
+            request = LISTROOM;
+        } else{
             continue;
         }
 
@@ -187,6 +200,11 @@ void *handle_client(void *arg) {
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
                 }
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
                 return NULL;
             }
             strncpy(room_id, token, MAX_ROOM_ID_LEN);
@@ -197,6 +215,11 @@ void *handle_client(void *arg) {
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
                 }
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
                 return NULL;
             }
             strncpy(password, token, sizeof(password));
@@ -214,9 +237,21 @@ void *handle_client(void *arg) {
 
             join_room(room, password, cli);
 
+<<<<<<< HEAD
             snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
                      cli->username);
             if (new_message(redis_context, room, send_buffer) == 1) {
+=======
+            snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
+
+            // load messages
+            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1",room_id);
+            DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
+            for(int i=reply->elements - 1;i >= 0;i--){
+                send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
+            }
+            if (new_message(redis_context, room, buffer) == 1) {
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
                 DEBUG_PRINT("new_message() failed\n");
             }
 
@@ -269,11 +304,18 @@ void *handle_client(void *arg) {
                 return NULL;
             }
 
+<<<<<<< HEAD
             snprintf(send_buffer, sizeof(send_buffer), "[%s] %s\n",
                      cli->username, token);
             send_buffer[sizeof(send_buffer) - 1] = '\0';
             DEBUG_PRINT("new MESSAGE arrived: %s", send_buffer);
             new_message(redis_context, room, send_buffer);
+=======
+            snprintf(buffer, BUFFER_SIZE, "%s: %s",username, token);
+            buffer[sizeof(buffer) - 1] ='\0';
+            DEBUG_PRINT("new MESSAGE arrived: %s\n",buffer);
+            new_message(redis_context, room, buffer);
+>>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
             break;
 
         case MAKE:
@@ -314,6 +356,28 @@ void *handle_client(void *arg) {
             free(args);
             pthread_detach(pthread_self());
             return NULL;
+
+        case LISTROOM:
+
+            DEBUG_PRINT("LIST\n");
+
+            reply = redisCommand(redis_context, "SMEMBERS rooms");
+            memset(buffer, 0, sizeof(buffer));
+            int count = reply -> elements;
+            int current_len = 0;
+            for (int i = 0; i < count; i++) {
+                char* room_id = strdup(reply -> element[i]->str);
+                int len = strlen(room_id);
+                if (current_len + len < BUFF_LEN) {
+                    strcat(buffer, room_id);
+                    strcat(buffer,".");
+                    current_len += len + 1;
+                }
+                free(room_id);
+            }
+            buffer[current_len]='\0';
+            DEBUG_PRINT("CHAT LIST: %s\n",buffer);
+            send(cli->sockfd, buffer, strlen(buffer), 0);
         }
     }
 

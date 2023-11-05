@@ -26,4 +26,4 @@
 #define DB_NAME "auth"
 #define DB_PORT 3306
 
-#define MAX_ROOMS_PER_SERVER 256
+#define MAX_ROOMS_PER_SERVER 128
