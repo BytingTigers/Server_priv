@@ -21,7 +21,7 @@ room_t **_get_rooms(redisContext *redis_context) {
             free(rooms);
             return NULL;
         }
-    
+
         for (int i = 0; i < reply->elements; i++) {
             rooms[i] = malloc(sizeof(room_t));
             rooms[i]->id = strdup(reply->element[i]->str);
@@ -29,11 +29,12 @@ room_t **_get_rooms(redisContext *redis_context) {
                    sizeof(client_t *) * MAX_CLIENTS_PER_ROOM);
             rooms[i]->client_count = 0;
         }
-        freeReplyObject(reply); 
+        freeReplyObject(reply);
 
         for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
             room_t *cur = rooms[i];
-            reply = redisCommand(redis_context, "GET room_password:%s", cur->id);
+            reply =
+                redisCommand(redis_context, "GET room_password:%s", cur->id);
 
             if (!reply) {
                 DEBUG_PRINT("redisCommand failed\n");
@@ -42,15 +43,14 @@ room_t **_get_rooms(redisContext *redis_context) {
 
             if (reply->type == REDIS_REPLY_STRING) {
                 cur->password = strdup(reply->str);
-                DEBUG_PRINT("Room %s: Password: %s",cur->id, cur->password);
+                DEBUG_PRINT("Room %s: Password: %s", cur->id, cur->password);
             } else {
                 DEBUG_PRINT("Room %s does not have a password set\n", cur->id);
                 cur->password = NULL;
             }
         }
+        freeReplyObject(reply);
     }
-
-    freeReplyObject(reply);
     return rooms;
 }
 
@@ -60,8 +60,8 @@ room_t *get_room(redisContext *redis_context, const char *id) {
 
     for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
         room_t *cur = rooms[i];
-        DEBUG_PRINT("COMPARE ROOM NAME %s\n",id);
-        DEBUG_PRINT("COMPARE WITH ROOM NAME %s\n",cur->id);
+        DEBUG_PRINT("COMPARE ROOM NAME %s\n", id);
+        DEBUG_PRINT("COMPARE WITH ROOM NAME %s\n", cur->id);
         if (strcmp(cur->id, id) == 0) {
             return cur;
         }
@@ -72,7 +72,7 @@ room_t *get_room(redisContext *redis_context, const char *id) {
 room_t *create_room(redisContext *redis_context, const char *id,
                     const char *password) {
 
-    DEBUG_PRINT("create_room(%s, %s) called\n",id, password);
+    DEBUG_PRINT("create_room(%s, %s) called\n", id, password);
     redisReply *reply = redisCommand(redis_context, "SADD rooms %s", id);
 
     if (!reply) {
@@ -111,17 +111,18 @@ room_t *create_room(redisContext *redis_context, const char *id,
 
     new_room->client_count = 0;
     new_room->id = strdup(id);
-    if(password){
+    if (password) {
         new_room->password = strdup(password);
-    }else{
+    } else {
         new_room->password = NULL;
     }
-    
+
     for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
         new_room->clients[i] = NULL;
     }
-    
-    rooms[create_room_index]=new_room;
+
+    rooms[create_room_index] = new_room;
+
     return new_room;
 }
 
@@ -166,8 +167,8 @@ int leave_room(room_t *room, client_t *client) {
 
 int new_message(redisContext *redis_context, const room_t *room,
                 const char *msg) {
-    
-    DEBUG_PRINT("new MESSAGE arrived: %s\n",msg);
+
+    DEBUG_PRINT("new MESSAGE arrived: %s\n", msg);
     // Save it to the history
     redisReply *reply =
         redisCommand(redis_context, "LPUSH msgs:%s %s", room->id, msg);
@@ -218,6 +219,8 @@ char *get_messages(redisContext *redis_context, const room_t *room) {
             break;
         }
     }
+
+    res[count] = '\0';
 
     freeReplyObject(reply);
     return res;
