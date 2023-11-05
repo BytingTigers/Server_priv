@@ -143,7 +143,7 @@ int join_room(room_t *room, const char *password, client_t *client) {
         if (room->clients[i] == NULL) {
             room->clients[i] = client;
             room->client_count++;
-            DEBUG_PRINT("room %s[%d]: %s",room->id, i, client->username);
+            DEBUG_PRINT("room %s[%d]: %s", room->id, i, client->username);
             return 1;
         }
     }
@@ -168,12 +168,9 @@ int leave_room(room_t *room, client_t *client) {
 
 int new_message(redisContext *redis_context, const room_t *room,
                 const char *msg) {
-<<<<<<< HEAD
 
     DEBUG_PRINT("new MESSAGE arrived: %s\n", msg);
-=======
-    
->>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
+
     // Save it to the history
     redisReply *reply =
         redisCommand(redis_context, "LPUSH msgs:%s %s", room->id, msg);

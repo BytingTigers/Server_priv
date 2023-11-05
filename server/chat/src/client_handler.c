@@ -1,5 +1,6 @@
 #include "client_handler.h"
 #include "room.h"
+#include <hiredis/hiredis.h>
 #include <unistd.h>
 
 /* Remove non-ASCII characters and ASCII control characters from the received
@@ -45,6 +46,7 @@ void *handle_client(void *arg) {
     char *chat_history;
 
     const char error_msg[] = "ERROR";
+    redisReply *reply;
 
     thread_args_t *args = (thread_args_t *)arg;
 
@@ -105,12 +107,7 @@ void *handle_client(void *arg) {
     }
     strncpy(username, token, MAX_USERNAME_LEN);
 
-<<<<<<< HEAD
-    // jwt_string
-=======
-
     // JWT
->>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
     token = strtok_r(NULL, delim, &rest);
     if (token == NULL) {
         DEBUG_PRINT("Invalid format.\n");
@@ -185,7 +182,7 @@ void *handle_client(void *arg) {
             request = QUIT;
         } else if (strncmp("list", token, 4) == 0) {
             request = LISTROOM;
-        } else{
+        } else {
             continue;
         }
 
@@ -237,21 +234,9 @@ void *handle_client(void *arg) {
 
             join_room(room, password, cli);
 
-<<<<<<< HEAD
             snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
                      cli->username);
             if (new_message(redis_context, room, send_buffer) == 1) {
-=======
-            snprintf(buffer, BUFF_LEN, "%s joined the room!\n", cli->username);
-
-            // load messages
-            redisReply *reply = redisCommand(redis_context, "LRANGE msgs:%s -10 -1",room_id);
-            DEBUG_PRINT("%d messages loaded from redis\n",reply->elements);
-            for(int i=reply->elements - 1;i >= 0;i--){
-                send(cli->sockfd, reply->element[i]->str, strlen(reply->element[i]->str), 0);
-            }
-            if (new_message(redis_context, room, buffer) == 1) {
->>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
                 DEBUG_PRINT("new_message() failed\n");
             }
 
@@ -304,18 +289,11 @@ void *handle_client(void *arg) {
                 return NULL;
             }
 
-<<<<<<< HEAD
             snprintf(send_buffer, sizeof(send_buffer), "[%s] %s\n",
                      cli->username, token);
             send_buffer[sizeof(send_buffer) - 1] = '\0';
             DEBUG_PRINT("new MESSAGE arrived: %s", send_buffer);
             new_message(redis_context, room, send_buffer);
-=======
-            snprintf(buffer, BUFFER_SIZE, "%s: %s",username, token);
-            buffer[sizeof(buffer) - 1] ='\0';
-            DEBUG_PRINT("new MESSAGE arrived: %s\n",buffer);
-            new_message(redis_context, room, buffer);
->>>>>>> 533c41101e0bd0dc43522667ffd8609f364ac359
             break;
 
         case MAKE:
@@ -362,22 +340,22 @@ void *handle_client(void *arg) {
             DEBUG_PRINT("LIST\n");
 
             reply = redisCommand(redis_context, "SMEMBERS rooms");
-            memset(buffer, 0, sizeof(buffer));
-            int count = reply -> elements;
+            memset(send_buffer, 0, sizeof(send_buffer));
+            int count = reply->elements;
             int current_len = 0;
             for (int i = 0; i < count; i++) {
-                char* room_id = strdup(reply -> element[i]->str);
+                char *room_id = strdup(reply->element[i]->str);
                 int len = strlen(room_id);
                 if (current_len + len < BUFF_LEN) {
-                    strcat(buffer, room_id);
-                    strcat(buffer,".");
+                    strcat(send_buffer, room_id);
+                    strcat(send_buffer, ".");
                     current_len += len + 1;
                 }
                 free(room_id);
             }
-            buffer[current_len]='\0';
-            DEBUG_PRINT("CHAT LIST: %s\n",buffer);
-            send(cli->sockfd, buffer, strlen(buffer), 0);
+            send_buffer[current_len] = '\0';
+            DEBUG_PRINT("CHAT LIST: %s\n", send_buffer);
+            send(cli->sockfd, send_buffer, strlen(send_buffer), 0);
         }
     }
 
