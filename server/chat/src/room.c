@@ -167,7 +167,6 @@ int leave_room(room_t *room, client_t *client) {
 int new_message(redisContext *redis_context, const room_t *room,
                 const char *msg) {
     
-    DEBUG_PRINT("new MESSAGE arrived: %s\n",msg);
     // Save it to the history
     redisReply *reply =
         redisCommand(redis_context, "LPUSH msgs:%s %s", room->id, msg);
