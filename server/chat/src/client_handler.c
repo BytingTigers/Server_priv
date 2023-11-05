@@ -284,6 +284,7 @@ void *handle_client(void *arg) {
             DEBUG_PRINT("Password: %s\n", password);
 
             create_room(redis_context, room_id, password);
+            DEBUG_PRINT("Room created: %s\n", room_id);
             break;
 
         case QUIT:
