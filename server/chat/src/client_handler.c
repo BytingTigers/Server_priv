@@ -324,13 +324,14 @@ void *handle_client(void *arg) {
             int count = reply -> elements;
             int current_len = 0;
             for (int i = 0; i < count; i++) {
-                char* room_id = strdup(reply -> element[i]);
+                char* room_id = strdup(reply -> element[i]->str);
                 int len = strlen(room_id);
                 if (current_len + len < BUFF_LEN) {
                     strcat(buffer, room_id);
                     strcat(buffer,".");
                     current_len += len + 1;
                 }
+                free(room_id);
             }
             buffer[current_len]='\0';
             DEBUG_PRINT("CHAT LIST: %s\n",buffer);
