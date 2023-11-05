@@ -13,6 +13,7 @@ int verify_jwt(const char *jwt_string, const char *username) {
 
     if (ret != 0) {
         fprintf(stderr, "Invalid JWT.\n");
+        DEBUG_PRINT("Invalid JWT\n");
         jwt_free(jwt);
         return 0; // JWT is not valid
     }
@@ -26,6 +27,7 @@ int verify_jwt(const char *jwt_string, const char *username) {
     }
 
     const char *token_username = jwt_get_grant(jwt, "username");
+    DEBUG_PRINT("Username in JWT: %s\n",token_username);
     if (!token_username || strcmp(token_username, username) != 0) {
         fprintf(stderr, "Username mismatch. \n");
         jwt_free(jwt);
