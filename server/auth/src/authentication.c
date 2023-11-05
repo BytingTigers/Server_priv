@@ -11,8 +11,6 @@
 #include <string.h>
 #include <time.h>
 
-#define QUERY_LEN 512
-
 char *sanitize_sql_input(const char *input) {
 
     if (input == NULL) {

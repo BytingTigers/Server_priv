@@ -17,6 +17,8 @@
 #define DB_NAME "auth"
 #define DB_PORT 3306
 
+#define QUERY_LEN 512
+
 char *hex_to_string(unsigned char *data, size_t dataLength);
 
 char *string_to_hex(const char *hex);
