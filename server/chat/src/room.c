@@ -129,11 +129,10 @@ int join_room(room_t *room, const char *password, client_t *client) {
     if (strncmp(room->password, password, strlen(room->password)) != 0) {
         DEBUG_PRINT("The invalid password attempt for the room %s\n", room->id);
         DEBUG_PRINT("%s != %s\n", room->password, password);
-
         return 0;
     }
 
-    if (room->client_count >= MAX_CLIENTS_PER_ROOM - 1) {
+    if (room->client_count >= MAX_CLIENTS_PER_ROOM) {
         DEBUG_PRINT("Too many clients for the room %s", room->id);
         return 0;
     }
@@ -141,12 +140,12 @@ int join_room(room_t *room, const char *password, client_t *client) {
     for (int i = 0; i < MAX_CLIENTS_PER_ROOM; i++) {
         if (room->clients[i] == NULL) {
             room->clients[i] = client;
-            break;
+            room->client_count++;
+            return 1;
         }
     }
 
-    room->client_count++;
-    return 1;
+    return 0;
 }
 
 // Return # of left clients

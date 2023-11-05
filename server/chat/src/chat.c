@@ -66,7 +66,6 @@ void *start_chat_server(void *port) {
             break;
         }
 
-        DEBUG_PRINT("1\n");
 
         client_t *cli = (client_t *)malloc(sizeof(client_t));
         if (cli == NULL) {
