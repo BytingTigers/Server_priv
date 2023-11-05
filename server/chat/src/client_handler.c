@@ -114,6 +114,7 @@ void *handle_client(void *arg) {
         return NULL;
     }
     strncpy(jwt_string, token, BUFF_LEN);
+    jwt_string[strlen(jwt_string) - 1]= '\0'; // remove last trail char
 
     if (verify_jwt(jwt_string, username) == 0) {
         DEBUG_PRINT("Invalid jwt.\n");
