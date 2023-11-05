@@ -319,7 +319,7 @@ void *handle_client(void *arg) {
 
             DEBUG_PRINT("LIST\n");
 
-            redisReply *reply = redisCommand(redis_context, "SMEMBERS rooms");
+            reply = redisCommand(redis_context, "SMEMBERS rooms");
             memset(buffer, 0, sizeof(buffer));
             int count = reply -> elements;
             int current_len = 0;
