@@ -23,9 +23,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     zlib1g-dev \
-    wget \
-    gdb \
-    vim
+    wget
 
 # Install libraries
 RUN apt-get install -y \
