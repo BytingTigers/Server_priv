@@ -208,6 +208,7 @@ void *handle_client(void *arg) {
 
             if (room == NULL) {
                 DEBUG_PRINT("Room %s does not exist.\n", room_id);
+                break;
             }
 
             join_room(room, password, cli);
