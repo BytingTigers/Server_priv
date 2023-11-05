@@ -23,7 +23,7 @@ room_t **_get_rooms(redisContext *redis_context) {
             DEBUG_PRINT("redisCommand failed\n");
             return NULL;
         }
-
+    
         for (int i = 0; i < reply->elements; i++) {
             rooms[i] = malloc(sizeof(room_t));
             rooms[i]->id = reply->element[i]->str;
@@ -32,8 +32,8 @@ room_t **_get_rooms(redisContext *redis_context) {
             rooms[i]->client_count = 0;
         }
 
-        room_t *cur = rooms[0];
-        while (cur++) {
+        for (int i = 0; i < MAX_ROOMS_PER_SERVER && rooms[i] != NULL; i++) {
+            room_t *cur = rooms[i];
             reply = redisCommand(redis_context, "GET password:%s", cur->id);
 
             if (!reply) {
@@ -41,12 +41,14 @@ room_t **_get_rooms(redisContext *redis_context) {
                 return NULL;
             }
 
-            if (reply->type != REDIS_REPLY_STRING) {
-                DEBUG_PRINT("Room %s does not have the password\n", cur->id);
-                return NULL;
+            if (reply->type == REDIS_REPLY_STRING) {
+                cur->password = strdup(reply->str);
+            } else {
+                DEBUG_PRINT("Room %s does not have a password set\n", cur->id);
+                cur->password = "";
             }
 
-            cur->password = reply->str;
+            freeReplyObject(reply);
         }
     }
 
