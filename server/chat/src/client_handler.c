@@ -262,6 +262,9 @@ void *handle_client(void *arg) {
 
             if(join_room(room, password, cli) == 0){
                 DEBUG_PRINT("Failed to join Room.\n");
+                if (send(cli->sockfd, "ERROR", strlen("ERROR"), 0) < 0) {
+                    DEBUG_PRINT("send() failed");
+                }
                 break;
             }
 
