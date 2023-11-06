@@ -4,8 +4,6 @@
 #define MAX_ROOM_ID_LEN 20
 #define MAX_USERNAME_LEN 20
 #define MAX_PASSWORD_LEN 20
-#define REDIS_SERVER "localhost"
-#define REDIS_PORT 6379
 
 #define BUFF_LEN 4096
 #define MAX_CLIENTS_PER_ROOM 1024
