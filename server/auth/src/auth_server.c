@@ -21,6 +21,8 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+const char reply[] = "ERROR_QUIT";
+
 typedef struct {
     struct sockaddr_in address;
     int sockfd;
@@ -111,7 +113,6 @@ void *handle_client(void *arg) {
     if (token != NULL) {
         mode = atoi(token);
     } else {
-        const char reply[] = "ERROR";
         send(cli->sockfd, reply, sizeof(reply), NULL);
         goto close_conn;
     }
@@ -121,7 +122,6 @@ void *handle_client(void *arg) {
         strncpy(id, token, USERNAME_MAX_LEN - 1);
         id[USERNAME_MAX_LEN - 1] = '\0';
     } else {
-        const char reply[] = "ERROR";
         send(cli->sockfd, reply, sizeof(reply), NULL);
         goto close_conn;
     }
@@ -131,7 +131,6 @@ void *handle_client(void *arg) {
         strncpy(pw, token, PASSWORD_MAX_LEN - 1);
         pw[PASSWORD_MAX_LEN - 1] = '\0';
     } else {
-        const char reply[] = "ERROR";
         send(cli->sockfd, reply, sizeof(reply), NULL);
         goto close_conn;
     }
@@ -145,7 +144,6 @@ void *handle_client(void *arg) {
 
         pthread_mutex_lock(&server->clients_mutex);
         if (signup(id, pw)) {
-            const char reply[] = "ERROR";
             send(cli->sockfd, reply, sizeof(reply), NULL);
         } else {
             const char reply[] = "SUCCESS";
