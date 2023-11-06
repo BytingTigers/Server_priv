@@ -266,6 +266,10 @@ void *handle_client(void *arg) {
                     DEBUG_PRINT("send() failed");
                 }
                 break;
+            }else{
+                if (send(cli->sockfd, "SUCCESS", strlen("SUCCESS"), 0) < 0) {
+                    DEBUG_PRINT("send() failed");
+                }
             }
 
             snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
