@@ -85,6 +85,12 @@ void *handle_client(void *arg) {
         if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
             DEBUG_PRINT("send() failed");
         }
+        
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         return NULL;
     }
 
@@ -103,6 +109,12 @@ void *handle_client(void *arg) {
         if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
             DEBUG_PRINT("send() failed");
         }
+
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         return NULL;
     }
     strncpy(username, token, MAX_USERNAME_LEN);
@@ -114,6 +126,12 @@ void *handle_client(void *arg) {
         if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
             DEBUG_PRINT("send() failed");
         }
+
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         return NULL;
     }
     strncpy(jwt_string, token, strlen(token));
@@ -306,6 +324,12 @@ void *handle_client(void *arg) {
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
                 }
+
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
                 return NULL;
             }
             strncpy(room_id, token, sizeof(room_id));
@@ -316,6 +340,12 @@ void *handle_client(void *arg) {
                 if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
                     DEBUG_PRINT("send() failed");
                 }
+
+                close(cli->sockfd);
+                remove_client(cli->uid, server);
+                free(cli);
+                free(args);
+                pthread_detach(pthread_self());
                 return NULL;
             }
             strncpy(password, token, sizeof(password));
