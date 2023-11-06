@@ -250,7 +250,10 @@ void *handle_client(void *arg) {
                 break;
             }
 
-            join_room(room, password, cli);
+            if(join_room(room, password, cli) == 0){
+                DEBUG_PRINT("Failed to join Room.\n");
+                break;
+            }
 
             snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
                      cli->username);
