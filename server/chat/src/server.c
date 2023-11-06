@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     // REDIS SETUP
 
     // Connect to Redis server
-    redisContext *redis_context = redisConnect(REDIS_SERVER, REDIS_PORT);
+    redisContext *redis_context = redisConnect(REDIS_HOST, REDIS_PORT);
     if (redis_context == NULL || redis_context->err) {
         if (redis_context) {
             printf("Error: %s\n", redis_context->errstr);
