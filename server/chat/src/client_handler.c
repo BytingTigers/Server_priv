@@ -45,7 +45,7 @@ void *handle_client(void *arg) {
 
     char *chat_history;
 
-    const char error_msg[] = "ERROR";
+    const char error_msg[] = "ERROR_QUIT";
     redisReply *reply;
 
     thread_args_t *args = (thread_args_t *)arg;
@@ -99,6 +99,11 @@ void *handle_client(void *arg) {
         if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
             DEBUG_PRINT("send() failed");
         }
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         return NULL;
     }
 
@@ -142,6 +147,11 @@ void *handle_client(void *arg) {
         if (send(cli->sockfd, error_msg, strlen(error_msg), 0) < 0) {
             DEBUG_PRINT("send() failed");
         }
+        close(cli->sockfd);
+        remove_client(cli->uid, server);
+        free(cli);
+        free(args);
+        pthread_detach(pthread_self());
         return NULL;
     }
     strncpy(cli->username, username, MAX_USERNAME_LEN - 1);
