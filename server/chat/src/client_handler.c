@@ -267,6 +267,7 @@ void *handle_client(void *arg) {
 
             snprintf(send_buffer, BUFF_LEN, "%s joined the room!\n",
                      cli->username);
+            send_buffer[sizeof(send_buffer) - 1] = '\0';
             if (new_message(redis_context, room, send_buffer) == 1) {
                 DEBUG_PRINT("new_message() failed\n");
             }
